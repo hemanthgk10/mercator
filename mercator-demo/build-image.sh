@@ -11,4 +11,4 @@ if [ ! -f ./build/neo4j-community-3.1.1-unix.tar.gz ]; then
 fi
 
 
-docker build . -t projector-demo
+docker build . -t mercator-demo

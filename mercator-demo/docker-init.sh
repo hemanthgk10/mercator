@@ -3,9 +3,9 @@
 
 /start-neo4j.sh
 
-cd /var/lib/projector
+cd /var/lib/mercator
 
-JAR_FILE=$(find ./lib -name 'projector-*-all.jar' | head -1)
+JAR_FILE=$(find ./lib -name 'mercator-*-all.jar' | head -1)
 
 java -jar ${JAR_FILE} &
 
