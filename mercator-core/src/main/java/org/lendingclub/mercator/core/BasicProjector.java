@@ -36,7 +36,7 @@ public class BasicProjector implements Projector {
 		properties = Maps.newHashMap();
 		properties.putAll(Maps.fromProperties(System.getProperties()));
 
-		File projectorPropertiesFile = new File("./projector.properties");
+		File projectorPropertiesFile = new File("./mercator.properties");
 		if (projectorPropertiesFile.exists()) {
 			try (FileReader fr = new FileReader(projectorPropertiesFile)) {
 				Properties p = new Properties();
