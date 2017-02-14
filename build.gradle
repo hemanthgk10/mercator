@@ -1,0 +1,114 @@
+
+apply plugin: 'eclipse'
+apply plugin: 'java'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+}
+
+
+group 'org.lendingclub.mercator'
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.3'
+}
+
+
+
+
+subprojects {
+
+
+
+    
+    apply plugin: 'java'
+    apply plugin: 'maven'
+    apply plugin: 'eclipse'
+    
+    group 'org.lendingclub.mercator'
+    version = "${MERCATOR_VERSION}"
+    
+
+    
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+    }
+    
+    dependencies {
+
+        testCompile "junit:junit:${JUNIT_VERSION}"
+        testCompile "org.assertj:assertj-core:${ASSERTJ_VERSION}"
+    }
+
+
+    task sourcesJar(type: Jar, dependsOn: classes) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+
+    task javadoc(type:Javadoc, overwrite:true) {
+        // needed because of vaadin's habit of keeping source in jars
+    }
+        
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+        
+    }    
+    artifacts {
+            archives sourcesJar, javadocJar, jar    
+    }
+ 
+
+    uploadArchives {
+
+        repositories {
+            
+            mavenDeployer {
+                //name = 'macgyver-bintray'
+                if (!project.hasProperty('BINRAY_USER')) {
+                    project.ext['BINTRAY_USER']=System.getenv("BINTRAY_USER")
+                }
+                if (!project.hasProperty('BINTRAY_KEY')) {
+                    project.ext['BINTRAY_KEY'] = System.getenv("BINTRAY_KEY")
+                }
+            
+           repository(id: 'macgyver-bintray', url: 'https://api.bintray.com/maven/lendingclub/OSS/mercator'){
+                    authentication(userName: BINTRAY_USER, password: BINTRAY_KEY)
+                }
+                //pom.setPackaging('jar')
+                pom.project {
+                    name "${project.name}"
+                    description "${project.name}"
+                    url 'https://github.com/LendingClub/mercator'
+                    licenses {
+                        license {
+                            name 'The Apache Software License, Version 2.0'
+                            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+                    scm {
+                        connection 'scm:git:git@github.com:LendingClub/mercator.git'
+                        developerConnection 'scm:git:git@github.com:LendingClub/mercator.git'
+                        url 'git@github.com:LendingClub/mercator.git'
+                    }
+                    developers {
+                        developer {
+                            name 'Rob Schoening'
+                            email 'robschoening@gmail.com'
+                        }
+                    }
+                
+                }
+            }
+        }
+    }
+    
+}
+
+
+
