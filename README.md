@@ -3,7 +3,7 @@
 # mercator
 
 [![CircleCI](https://circleci.com/gh/LendingClub/mercator.svg?style=svg)](https://circleci.com/gh/LendingClub/mercator)
-[![Download](https://api.bintray.com/packages/lendingclub/OSS/projector/images/download.svg) ](https://bintray.com/lendingclub/OSS/mercator/_latestVersion)
+[![Download](https://api.bintray.com/packages/lendingclub/OSS/mercator/images/download.svg) ](https://bintray.com/lendingclub/OSS/mercator/_latestVersion)
 
 Mercator creates graph-model projections of physical, virtual and cloud infrastructure.
 
