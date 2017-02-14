@@ -1,4 +1,4 @@
-![Mercator](https://raw.githubusercontent.com/LendingClub/mercator/master/.assets/noun_7987_sm.png) 
+![Mercator](https://raw.githubusercontent.com/LendingClub/mercator/master/.assets/noun_773008_sm.png) 
 
 # mercator
 
