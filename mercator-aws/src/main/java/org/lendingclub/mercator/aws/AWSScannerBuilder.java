@@ -148,6 +148,10 @@ public class  AWSScannerBuilder extends ScannerBuilder<AWSScanner> {
 	public RDSInstanceScanner buildRDSInstanceScanner() {
 		 return build(RDSInstanceScanner.class);
 	}
+	
+	public ELBScanner buildELBScanner() {
+		return build(ELBScanner.class);
+	}
 
 
 	public <T extends AWSScanner> T build(Class<T> clazz) {
