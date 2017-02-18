@@ -6,3 +6,4 @@ build/
 *.class
 projector-aws/bin/
 bin/
+.vscode/

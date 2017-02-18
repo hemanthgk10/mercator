@@ -60,7 +60,13 @@ public class  AWSScannerBuilder extends ScannerBuilder<AWSScanner> {
 		}
 		
 	}
+	
+	public AWSScannerBuilder withRegion(String region) {
+		return withRegion(Regions.fromName(region));
+	}
+	
 	public AWSScannerBuilder withRegion(Regions r) {
+	
 		Preconditions.checkState(this.region == null, "region already set");
 		this.region = Region.getRegion(r);
 		return this;
