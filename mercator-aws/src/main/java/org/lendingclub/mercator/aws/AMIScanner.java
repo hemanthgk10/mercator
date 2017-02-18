@@ -52,7 +52,7 @@ public class AMIScanner extends AbstractEC2Scanner {
 	}
 
 	@Override
-	public void doScan() {
+	protected void doScan() {
 		AmazonEC2Client c = getClient();
 		
 		NeoRxClient neoRx = getNeoRxClient();

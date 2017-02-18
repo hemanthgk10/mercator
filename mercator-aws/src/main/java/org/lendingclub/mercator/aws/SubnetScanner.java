@@ -50,7 +50,7 @@ public class SubnetScanner extends AbstractEC2Scanner{
 
 
 	@Override
-	public void doScan() {
+	protected void doScan() {
 	
 		DescribeSubnetsResult result = getClient().describeSubnets();
 

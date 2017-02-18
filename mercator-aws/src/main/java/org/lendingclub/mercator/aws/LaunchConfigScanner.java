@@ -56,7 +56,7 @@ public class LaunchConfigScanner extends AWSScanner<AmazonAutoScalingClient> {
 	}
 
 	@Override
-	public void doScan() {	
+	protected void doScan() {	
 		GraphNodeGarbageCollector gc = new GraphNodeGarbageCollector().label("AwsLaunchConfig").account(getAccountId()).neo4j(getNeoRxClient()).region(getRegion());
 				
 		forEachLaunchConfig(getRegion(), config -> {

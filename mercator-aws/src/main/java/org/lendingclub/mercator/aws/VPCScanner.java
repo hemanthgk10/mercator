@@ -39,7 +39,7 @@ public class VPCScanner extends AbstractEC2Scanner {
 
 
 	@Override
-	public void doScan() {
+	protected void doScan() {
 
 	
 		DescribeVpcsResult result = getClient().describeVpcs();

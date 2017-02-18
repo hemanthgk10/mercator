@@ -39,7 +39,7 @@ public class RegionScanner extends AbstractEC2Scanner {
 	}
 
 	@Override
-	public void doScan() {
+	protected void doScan() {
 
 		GraphNodeGarbageCollector gc = newGarbageCollector().region(getRegion()).label("AwsRegion");
 

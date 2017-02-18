@@ -1,3 +1,7 @@
+## 1.0.3
+* reduce visibility of  doScan() methods from public to protected
+* remove problematic member withAutoScalingGroupNames()
+
 ## 1.0.2
 
 * Upgrade to AWS SDK 1.11.93

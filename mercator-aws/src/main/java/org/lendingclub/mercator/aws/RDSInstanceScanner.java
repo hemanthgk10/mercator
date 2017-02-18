@@ -61,7 +61,7 @@ public class RDSInstanceScanner extends AWSScanner<AmazonRDSClient> {
 	}
 
 	@Override
-	public void doScan() {
+	protected void doScan() {
 		
 		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsRdsInstance").region(getRegion());
 		

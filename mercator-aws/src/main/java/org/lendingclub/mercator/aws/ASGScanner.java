@@ -36,30 +36,27 @@ import com.google.common.base.Strings;
 
 public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 
-	List<String> targetAutoScalingGroupNames;
-
 	public ASGScanner(AWSScannerBuilder builder) {
 		super(builder, AmazonAutoScalingClient.class);
 
 	}
 
 
-	public ASGScanner withAutoScalingGroupNames(Collection<String> names) {
-		this.targetAutoScalingGroupNames = names.isEmpty() ? null : new ArrayList<>(names);
-		return this;
-	}
-
-	public ASGScanner withAutoScalingGroupNames(String... names) {
-		return withAutoScalingGroupNames(Arrays.asList(names));
-	}
-
 	@Override
 	public Optional<String> computeArn(JsonNode n) {
 		return Optional.of(n.path("aws_autoScalingGroupARN").asText());
 	}
 
+	public void scan(String...asgNames) {
+		if (asgNames==null || asgNames.length==0) {
+			doScan();
+		}
+	}
 	@Override
-	public void doScan() {
+	protected void doScan() {
+		doScan(new String[0]);
+	}
+	private void doScan(String ...asgNames) {
 		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsAsg").region(getRegion());
 
 		forEachAsg(asg -> {
@@ -74,17 +71,17 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 			mapAsgRelationships(asg, asgArn, getRegion().getName());
 
 		});
-		if (targetAutoScalingGroupNames == null) {
+		if (asgNames==null || asgNames.length==0) {
 			// only invoke if scanned all
 			gc.invoke();
 		}
 	}
 
-	private void forEachAsg(Consumer<AutoScalingGroup> consumer) {
+	private void forEachAsg(Consumer<AutoScalingGroup> consumer, String ...asgNames) {
 
 		DescribeAutoScalingGroupsRequest request = new DescribeAutoScalingGroupsRequest();
-		if (targetAutoScalingGroupNames != null) {
-			request.withAutoScalingGroupNames(targetAutoScalingGroupNames);
+		if (asgNames != null && asgNames.length>0) {
+			request.withAutoScalingGroupNames(asgNames);
 		}
 		DescribeAutoScalingGroupsResult results = getClient().describeAutoScalingGroups(request);
 		String token = results.getNextToken();

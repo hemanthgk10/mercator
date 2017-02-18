@@ -34,7 +34,7 @@ public class SecurityGroupScanner extends AbstractEC2Scanner {
 	}
 
 	@Override
-	public void doScan() {
+	protected void doScan() {
 
 		DescribeSecurityGroupsResult result = getClient().describeSecurityGroups();
 
