@@ -13,19 +13,10 @@
  */
 package org.lendingclub.mercator.aws;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.lendingclub.mercator.core.Projector;
-
-import com.amazonaws.AmazonWebServiceClient;
-import com.amazonaws.regions.Region;
 import com.amazonaws.services.autoscaling.AmazonAutoScalingClient;
-import com.amazonaws.services.autoscaling.AmazonAutoScalingClientBuilder;
 import com.amazonaws.services.autoscaling.model.AutoScalingGroup;
 import com.amazonaws.services.autoscaling.model.DescribeAutoScalingGroupsRequest;
 import com.amazonaws.services.autoscaling.model.DescribeAutoScalingGroupsResult;
@@ -47,7 +38,7 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 		return Optional.of(n.path("aws_autoScalingGroupARN").asText());
 	}
 
-	public void scan(String...asgNames) {
+	public void scanASGNames(String...asgNames) {
 		if (asgNames==null || asgNames.length==0) {
 			doScan();
 		}
