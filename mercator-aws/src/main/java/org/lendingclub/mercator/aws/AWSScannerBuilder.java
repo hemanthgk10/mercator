@@ -48,6 +48,14 @@ public class  AWSScannerBuilder extends ScannerBuilder<AWSScanner> {
 		@Override
 		public String get() {
 			AWSSecurityTokenServiceClientBuilder b = AWSSecurityTokenServiceClientBuilder.standard().withCredentials(getCredentialsProvider());
+			
+			// this will fail if the region is not set
+			if (region!=null) {
+				b = b.withRegion(region.getName());
+			}
+			else {
+				b = b.withRegion(Regions.US_EAST_1); 
+			}
 			if (clientConfiguration!=null) {
 				b = b.withClientConfiguration(clientConfiguration);
 			}

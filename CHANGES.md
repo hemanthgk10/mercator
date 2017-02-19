@@ -1,3 +1,6 @@
+## 1.0.4
+* fix account id lookup if version is not specified
+
 ## 1.0.3
 * reduce visibility of  doScan() methods from public to protected
 * remove problematic member withAutoScalingGroupNames()
