@@ -1,4 +1,7 @@
 
+## 1.0.6
+* fix bug in ASG scanning
+
 ## 1.0.5
 * add schema/constraint management
 * add security group arn

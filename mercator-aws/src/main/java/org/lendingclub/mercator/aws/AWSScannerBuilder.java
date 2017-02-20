@@ -9,6 +9,7 @@ import com.amazonaws.AmazonWebServiceClient;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
@@ -100,6 +101,27 @@ public class  AWSScannerBuilder extends ScannerBuilder<AWSScanner> {
 	}
 
 	
+	/**
+	 * This is more of a testing convenience than anything else.  Credentials are loaded using the DefaultAWSCredentialsProviderChain, and
+	 * then an alternate role is assumed.
+	 * 
+	 * @param roleArn the role that we are assuming.
+	 * @param sessionName the session name is user-chosen...usefull for auditing/logging
+	 * @return
+	 */
+	public AWSScannerBuilder withAssumeRoleCredentials(String roleArn, String sessionName) {
+		
+		// If we wanted to be able to use a different credentials provider, we could.  We would just need to initialize a
+		// AWSSecurityTokenService and pass it to the STSAssumeRoleSessionCredentialsProvier.Builder.  I am leaving the code here just for reference, because
+		// it is really easy to forget.
+		
+		//AWSSecurityTokenService sts = AWSSecurityTokenServiceClientBuilder.standard().withCredentials(new DefaultAWSCredentialsProviderChain()).build();
+		
+		AWSCredentialsProvider p = new STSAssumeRoleSessionCredentialsProvider.Builder(roleArn,sessionName).build();
+		
+		return withCredentials(p);
+		
+	}
 	public AWSScannerBuilder withCredentials(AWSCredentialsProvider p) {
 		this.credentialsProvide = p;
 		return this;

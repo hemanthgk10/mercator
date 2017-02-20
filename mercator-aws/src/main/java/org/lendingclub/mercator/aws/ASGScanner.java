@@ -32,22 +32,25 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 
 	}
 
-
 	@Override
 	public Optional<String> computeArn(JsonNode n) {
 		return Optional.of(n.path("aws_autoScalingGroupARN").asText());
 	}
 
-	public void scanASGNames(String...asgNames) {
-		if (asgNames==null || asgNames.length==0) {
+	public void scanASGNames(String... asgNames) {
+		if (asgNames == null || asgNames.length == 0) {
 			doScan();
+		} else {
+			doScan(asgNames);
 		}
 	}
+
 	@Override
 	protected void doScan() {
 		doScan(new String[0]);
 	}
-	private void doScan(String ...asgNames) {
+
+	private void doScan(String... asgNames) {
 		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsAsg").region(getRegion());
 
 		forEachAsg(asg -> {
@@ -61,28 +64,29 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 
 			mapAsgRelationships(asg, asgArn, getRegion().getName());
 
-		});
-		if (asgNames==null || asgNames.length==0) {
+		}, asgNames);
+		if (asgNames == null || asgNames.length == 0) {
 			// only invoke if scanned all
 			gc.invoke();
 		}
 	}
 
-	private void forEachAsg(Consumer<AutoScalingGroup> consumer, String ...asgNames) {
+	
+	private void forEachAsg(Consumer<AutoScalingGroup> consumer, String... asgNames) {
 
 		DescribeAutoScalingGroupsRequest request = new DescribeAutoScalingGroupsRequest();
-		if (asgNames != null && asgNames.length>0) {
+		if (asgNames != null && asgNames.length > 0) {
 			request.withAutoScalingGroupNames(asgNames);
 		}
-		DescribeAutoScalingGroupsResult results = getClient().describeAutoScalingGroups(request);
-		String token = results.getNextToken();
-		results.getAutoScalingGroups().forEach(consumer);
-
-		while (!Strings.isNullOrEmpty(token) && !token.equals("null")) {
-			results = getClient().describeAutoScalingGroups(request.withNextToken(token));
+		String token = null;
+		do {
+			DescribeAutoScalingGroupsResult results = getClient().describeAutoScalingGroups(request);
 			token = results.getNextToken();
 			results.getAutoScalingGroups().forEach(consumer);
-		}
+
+			request.setNextToken(token);
+
+		} while (!Strings.isNullOrEmpty(token) && !token.equals("null"));
 	}
 
 	protected void mapAsgRelationships(AutoScalingGroup asg, String asgArn, String region) {
@@ -108,7 +112,6 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 		deleteObsoleteRelationships("AwsLaunchConfig", "HAS", asgArn, updateTs);
 	}
 
-	
 	protected void mapAsgToSubnet(String subnets, String asgArn, String region) {
 		long updateTs = System.currentTimeMillis();
 		String[] arr = subnets.split(",");

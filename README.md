@@ -101,6 +101,20 @@ This will:
 
 After the scanner has been constructed, it can be used indefinitely.
 
+### Credentials
+
+A custom CredendialsProvider can be passed to the builder using `withCredentials(AWSCredentialsProvider)`.
+
+As a convenience it is also possible to assume a role using the `DefaultAWSCredentialsProviderChain`.  You can 
+always do this yourself.  I added it here because I tend to forget how to do it and having it in fluent 
+form during development is very useful: 
+
+```java
+new AWSScannerBuilder()
+	.withProjector(projector)
+	.withAssumeRoleCredentials("arn:aws:iam::111222333444:role/my-assumed-role", "foo")
+				.withRegion(Regions.US_WEST_2).build(ELBScanner.class).scan();
+```
 ## VMWare
 
 Mercator can build a graph of VMWare entities with the following bit of code:

@@ -38,14 +38,14 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 	private static final int DESCRIBE_TAGS_MAX = 20;
 
 	public ELBScanner(AWSScannerBuilder builder) {
-		super(builder,AmazonElasticLoadBalancingClient.class);
-		
+		super(builder, AmazonElasticLoadBalancingClient.class);
+
 	}
 
 	@Override
 	protected AmazonElasticLoadBalancingClient createClient() {
-		return (AmazonElasticLoadBalancingClient) builder.configure(AmazonElasticLoadBalancingClientBuilder
-				.standard()).build();
+		return (AmazonElasticLoadBalancingClient) builder.configure(AmazonElasticLoadBalancingClientBuilder.standard())
+				.build();
 	}
 
 	public void scanLoadBalancerNames(String... loadBalancerNames) {
@@ -55,10 +55,17 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 		DescribeLoadBalancersRequest request = new DescribeLoadBalancersRequest();
 
 		request.setLoadBalancerNames(Arrays.asList(loadBalancerNames));
-		DescribeLoadBalancersResult results = getClient().describeLoadBalancers(request);
-		results.getLoadBalancerDescriptions().forEach(it -> {
-			projectElb(it, null);
-		});
+
+		String marker = null;
+		do {
+			DescribeLoadBalancersResult results = getClient().describeLoadBalancers(request);
+
+			marker = results.getNextMarker();
+			results.getLoadBalancerDescriptions().forEach(it -> {
+				projectElb(it, null);
+			});
+			request.setMarker(marker);
+		} while ((!Strings.isNullOrEmpty(marker)) && (!marker.equals("null")));
 	}
 
 	@Override
@@ -112,18 +119,16 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 
 		DescribeLoadBalancersRequest request = new DescribeLoadBalancersRequest();
 
-		DescribeLoadBalancersResult results = getClient().describeLoadBalancers(request);
-		String marker = results.getNextMarker();
+		
+		String marker = null;
+		do {
 
-		results.getLoadBalancerDescriptions().forEach(consumer);
-		writeTagsToNeo4j(results, region, getClient());
-
-		while (!Strings.isNullOrEmpty(marker) && !marker.equals("null")) {
-			results = getClient().describeLoadBalancers(request.withMarker(marker));
+			DescribeLoadBalancersResult results = getClient().describeLoadBalancers(request.withMarker(marker));
 			marker = results.getNextMarker();
 			results.getLoadBalancerDescriptions().forEach(consumer);
 			writeTagsToNeo4j(results, region, getClient());
-		}
+			request.setMarker(marker);
+		} while  (!Strings.isNullOrEmpty(marker) && !marker.equals("null"));
 	}
 
 	protected void writeTagsToNeo4j(DescribeLoadBalancersResult results, Region region,
@@ -149,6 +154,7 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 						Preconditions.checkNotNull(getNeoRxClient());
 
 						getNeoRxClient().execCypher(cypher, "aws_arn", elbArn, "props", n);
+						
 					} catch (RuntimeException e) {
 						logger.warn("problem scanning ELB tags", e);
 					}
