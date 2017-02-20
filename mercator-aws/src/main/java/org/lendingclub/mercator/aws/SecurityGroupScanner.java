@@ -30,7 +30,10 @@ public class SecurityGroupScanner extends AbstractEC2Scanner {
 
 	@Override
 	public Optional<String> computeArn(JsonNode n) {
-		return Optional.empty();
+		
+		//arn:aws:ec2:region:account-id:security-group/security-group-id
+		return Optional.of(String.format("arn:aws:ec2:%s:%s:security-group/%s", n.get("aws_region").asText(),n.get("aws_account").asText(),n.get("aws_groupId").asText()));
+
 	}
 
 	@Override
@@ -46,15 +49,15 @@ public class SecurityGroupScanner extends AbstractEC2Scanner {
 
 			// non-VPC security groups don't have a VPC
 			String vpcId = Strings.nullToEmpty(sg.getVpcId());
-			String cypher = "merge (sg:AwsSecurityGroup {aws_account: {a}, aws_region: {r}, aws_vpcId: {vpcId}, aws_groupId: {groupId}}) set sg+={props}, sg.updateTs={now} return sg";
+			String cypher = "merge (sg:AwsSecurityGroup {aws_arn:{arn}}) set sg+={props}, sg.updateTs={now} return sg";
 
-			JsonNode xx = getNeoRxClient().execCypher(cypher, "vpcId", vpcId, "groupId", sg.getGroupId(), "props", g,
-					"now", now, "a", getAccountId(), "r", getRegion().getName()).toBlocking().first();
+			JsonNode xx = getNeoRxClient().execCypher(cypher, "arn", g.path("aws_arn").asText(), "props", g,
+					"now", now).toBlocking().first();
 
 			gc.updateEarliestTimestamp(xx);
 			if (!vpcId.isEmpty()) {
-				cypher = "match (v:AwsVpc {aws_vpcId: {vpcId}}), (sg:AwsSecurityGroup {aws_groupId:{groupId}, aws_vpcId: {vpcId}}) merge (sg)-[:RESIDES_IN]->(v)";
-				getNeoRxClient().execCypher(cypher, "vpcId", vpcId, "groupId", sg.getGroupId());
+				cypher = "match (v:AwsVpc {aws_vpcId: {vpcId}}), (sg:AwsSecurityGroup {aws_arn:{sg_arn}}) merge (sg)-[:RESIDES_IN]->(v)";
+				getNeoRxClient().execCypher(cypher, "vpcId", vpcId, "sg_arn", g.path("aws_arn").asText());
 			}
 		});
 

@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.lendingclub.mercator.core.AbstractScanner;
 import org.lendingclub.mercator.core.Projector;
 import org.lendingclub.mercator.core.Scanner;
 import org.slf4j.Logger;
@@ -46,21 +47,20 @@ import com.vmware.vim25.mo.ServerConnection;
 import com.vmware.vim25.mo.ServiceInstance;
 import com.vmware.vim25.mo.VirtualMachine;
 
-public class VMWareScanner implements Scanner {
+public class VMWareScanner extends AbstractScanner {
 
 	ObjectMapper mapper = new ObjectMapper();
 	Logger logger = LoggerFactory.getLogger(VMWareScanner.class);
 
 	String vcenterUuid;
-	VMWareScannerBuilder builder;
+
 	Supplier<ServiceInstance> serviceInstanceSupplier;
 
-	protected VMWareScanner() {
-		// for unit testing
-	}
+
 
 	public VMWareScanner(VMWareScannerBuilder builder, Map<String, String> config) {
-		this.builder = builder;
+		super(builder,config);
+		
 		Map<String, String> cfg = new HashMap<String, String>();
 		cfg.putAll(builder.getProjector().getProperties());
 		cfg.putAll(config);
@@ -70,10 +70,11 @@ public class VMWareScanner implements Scanner {
 
 	protected JsonNode ensureController() {
 		String cypher = "merge (c:ComputeController:VMWareVCenter {id: {id}}) set c.type='vcenter' return c";
-		return getNeoRxClient().execCypher(cypher, "id", getVCenterId()).toBlocking()
+		return getProjector().getNeoRxClient().execCypher(cypher, "id", getVCenterId()).toBlocking()
 				.first();
 	}
 
+	
 	public synchronized String getVCenterId() {
 		if (vcenterUuid == null) {
 			vcenterUuid = getServiceInstance().getAboutInfo().getInstanceUuid();
@@ -92,7 +93,7 @@ public class VMWareScanner implements Scanner {
 	
 		String cypher ="merge (c:ComputeHost:VMWareHost {id:{id}}) on match set c+={p} ,c.updateTs=timestamp() ON CREATE SET c+={p}, c.updateTs=timestamp() return c";
 
-		JsonNode computeHost = getNeoRxClient().execCypher(cypher,"id", n.path("id").asText(),"p",n).toBlocking()
+		JsonNode computeHost = getProjector().getNeoRxClient().execCypher(cypher,"id", n.path("id").asText(),"p",n).toBlocking()
 				.first();
 
 
@@ -103,7 +104,7 @@ public class VMWareScanner implements Scanner {
 		String cypher = "merge (c:VMWareCluster {id:{id}}) on match set c+={props} "
 				+ ",c.updateTs=timestamp() ON CREATE SET "
 				+" c+={props}, c.updateTs=timestamp() return c";
-		getNeoRxClient().execCypher(cypher, "id",cluster.path("id").asText(),"props",cluster).toBlocking().first();
+		getProjector().getNeoRxClient().execCypher(cypher, "id",cluster.path("id").asText(),"props",cluster).toBlocking().first();
 	}
 
 	public void updateComputeInstance(ObjectNode n) {
@@ -114,7 +115,7 @@ public class VMWareScanner implements Scanner {
 				+ ",c.updateTs=timestamp() ON CREATE SET "
 				+ "c+={props}, c.updateTs=timestamp() return c";
 
-		getNeoRxClient().execCypher(cypher, "id",n.path("id").asText(),"props",n).toBlocking().first();
+		getProjector().getNeoRxClient().execCypher(cypher, "id",n.path("id").asText(),"props",n).toBlocking().first();
 
 	}
 
@@ -211,7 +212,7 @@ public class VMWareScanner implements Scanner {
 		logger.debug("updating relationship between cluster={} and host={}",
 				cluster.getName(), host.getName());
 		String cypher = "match (h {id:{hostId} }), (c:VMWareCluster {id: {clusterId}}) MERGE (c)-[r:CONTAINS]->(h) ON CREATE SET r.updateTs=timestamp(),r.createTs=timestamp() ON MATCH SET r.updateTs=timestamp() return r";
-		getNeoRxClient().execCypher(cypher, "hostId", getUniqueId(host), "clusterId",
+		getProjector().getNeoRxClient().execCypher(cypher, "hostId", getUniqueId(host), "clusterId",
 				getUniqueId(cluster));
 	}
 
@@ -220,7 +221,7 @@ public class VMWareScanner implements Scanner {
 		logger.debug("updating relationship between host={} and vm={}",
 				h.getName(), vm.getName());
 		String cypher = "match (h:ComputeHost {id:{hostId} }), (c:ComputeInstance {id: {computeId}}) MERGE (h)-[r:HOSTS]->(c) ON CREATE SET r.updateTs=timestamp(),r.createTs=timestamp() ON MATCH SET r.updateTs=timestamp() return r";
-		getNeoRxClient().execCypher(cypher, "hostId", getUniqueId(h), "computeId",
+		getProjector().getNeoRxClient().execCypher(cypher, "hostId", getUniqueId(h), "computeId",
 				getUniqueId(vm));
 	
 
@@ -231,7 +232,7 @@ public class VMWareScanner implements Scanner {
 		logger.debug("updating relationship between dc={} and cluster={}",
 				dc.getName(), cluster.getName());
 		String cypher = "match (d:VMWareDatacenter {id:{datacenterId} }), (c:VMWareCluster {id: {clusterId}}) MERGE (d)-[r:CONTAINS]->(c) ON CREATE SET r.updateTs=timestamp(),r.createTs=timestamp() ON MATCH SET r.updateTs=timestamp() return r";
-		getNeoRxClient().execCypher(cypher, "datacenterId", computeUniqueId(dc.getMOR()), "clusterId",
+		getProjector().getNeoRxClient().execCypher(cypher, "datacenterId", computeUniqueId(dc.getMOR()), "clusterId",
 				computeUniqueId(cluster.getMOR()));
 
 		
@@ -239,7 +240,7 @@ public class VMWareScanner implements Scanner {
 		JsonNode vcenter = ensureController();
 		String vcenterid = vcenter.get("id").asText();
 		cypher = "match (c:ComputeController:VMWareVCenter {id:{vcenterId}}), (dc:VMWareDatacenter {id:{datacenterId} }) MERGE (c)-[r:MANAGES]->(dc) ON CREATE SET r.updateTs=timestamp() ON MATCH SET r.updateTs=timestamp() return r";
-		getNeoRxClient().execCypher(cypher, "vcenterId", vcenterid, "datacenterId",
+		getProjector().getNeoRxClient().execCypher(cypher, "vcenterId", vcenterid, "datacenterId",
 				computeUniqueId(dc.getMOR()));
 	}
 
@@ -256,7 +257,7 @@ public class VMWareScanner implements Scanner {
 			ObjectNode dataCenterNode = toObjectNode(dc);
 			String cypher = "merge (d:VMWareDatacenter {id:{id}}) set d+={props}";
 
-			getNeoRxClient().execCypher(cypher, "id", dataCenterNode.path("id").asText(), "props", dataCenterNode);
+			getProjector().getNeoRxClient().execCypher(cypher, "id", dataCenterNode.path("id").asText(), "props", dataCenterNode);
 
 			for (ManagedEntity me : dc.getHostFolder().getChildEntity()) {
 				if (me instanceof ClusterComputeResource) {
@@ -297,7 +298,7 @@ public class VMWareScanner implements Scanner {
 
 			updateComputeHost(n);
 
-			long now = getNeoRxClient().execCypher("return timestamp() as ts")
+			long now = getProjector().getNeoRxClient().execCypher("return timestamp() as ts")
 					.toBlocking().first().asLong();
 
 			if (scanGuests) {
@@ -350,14 +351,14 @@ public class VMWareScanner implements Scanner {
 
 		// this is for logging only
 
-		for (JsonNode n : getNeoRxClient()
+		for (JsonNode n : getProjector().getNeoRxClient()
 				.execCypher(cypher.replace("delete r", "return r"), "id", getUniqueId(host), "ts", ts)
 				.toBlocking().toIterable()) {
 			logger.info("clearing stale relationship: {}", n);
 		}
 		// end of logging section
 
-		getNeoRxClient().execCypher(cypher, "id", getUniqueId(host), "ts", ts);
+		getProjector().getNeoRxClient().execCypher(cypher, "id", getUniqueId(host), "ts", ts);
 	}
 
 	public void scanAllClusters() {
@@ -392,17 +393,12 @@ public class VMWareScanner implements Scanner {
 		scanAllHosts();
 	}
 
-	public Projector getProjector() {
-		return builder.getProjector();
-	}
+	
 
 	public ServiceInstance getServiceInstance() {
 		return serviceInstanceSupplier.get();
 	}
 
-	public NeoRxClient getNeoRxClient() {
-		return builder.getProjector().getNeoRxClient();
-	}
 
 	public VMWareQueryTemplate newQueryTemplate() {
 		return new VMWareQueryTemplate(getServiceInstance());

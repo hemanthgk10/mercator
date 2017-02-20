@@ -8,6 +8,7 @@ import org.lendingclub.mercator.core.AbstractScanner;
 import org.lendingclub.mercator.core.Projector;
 import org.lendingclub.mercator.core.ProjectorException;
 import org.lendingclub.mercator.core.Scanner;
+import org.lendingclub.mercator.core.SchemaManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,6 +137,11 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 	}
 
 
+
+	@Override
+	public SchemaManager getSchemaManager() {
+		return new AWSSchemaManager(getNeoRxClient());
+	}
 
 	public RequestMetricCollector getMetricCollector() {
 		return metricCollector;

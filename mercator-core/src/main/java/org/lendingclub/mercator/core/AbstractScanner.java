@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
+import io.macgyver.neorx.rest.NeoRxClient;
+
 public abstract class AbstractScanner implements Scanner {
 
 	Logger logger = LoggerFactory.getLogger(getClass());
@@ -49,4 +51,9 @@ public abstract class AbstractScanner implements Scanner {
 			logger.warn("problem",e);
 		}
 	}
+	
+	public SchemaManager getSchemaManager() {
+		return new SchemaManager(getProjector().getNeoRxClient());
+	}
+	
 }

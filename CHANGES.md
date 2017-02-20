@@ -1,3 +1,8 @@
+
+## 1.0.5
+* add schema/constraint management
+* add security group arn
+
 ## 1.0.4
 * fix account id lookup if version is not specified
 

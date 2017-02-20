@@ -49,9 +49,9 @@ public class RDSInstanceScanner extends AWSScanner<AmazonRDSClient> {
 	@Override
 	public Optional<String> computeArn(JsonNode n) {
 		
-		String region = n.path(AWSScanner.AWS_REGION_ATTRIBUTE).asText(null);
-		String account = n.path(AccountScanner.ACCOUNT_ATTRIBUTE).asText(null);
-		String dbInstanceId = n.path("aws_dbinstanceIdentifier").asText(null);
+		String region = n.get(AWSScanner.AWS_REGION_ATTRIBUTE).asText(null);
+		String account = n.get(AccountScanner.ACCOUNT_ATTRIBUTE).asText(null);
+		String dbInstanceId = n.get("aws_dbinstanceIdentifier").asText(null);
 		
 		Preconditions.checkState(!Strings.isNullOrEmpty(region), "aws_region not set");
 		Preconditions.checkState(!Strings.isNullOrEmpty(account), "aws_account not set");
