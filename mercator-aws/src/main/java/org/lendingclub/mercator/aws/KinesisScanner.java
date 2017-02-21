@@ -42,8 +42,14 @@ public class KinesisScanner extends AWSScanner<AmazonKinesisClient> {
 	protected void doScan() {
 
 		ListStreamsResult result = getClient().listStreams();
+		
 		for(String name: result.getStreamNames()) {
-			scanStream(name);
+			try {
+				scanStream(name);
+			}
+			catch (RuntimeException e) {
+				maybeThrow(e,"problem scanning kinesis");
+			}
 		}
 
 		

@@ -12,11 +12,9 @@ import com.google.common.collect.Maps;
 public class SQSScanner extends AWSScanner<AmazonSQSClient> {
 
 	public SQSScanner(AWSScannerBuilder builder) {
-		super(builder,AmazonSQSClient.class);
+		super(builder, AmazonSQSClient.class);
 
 	}
-
-
 
 	@Override
 	protected AmazonSQSClient createClient() {
@@ -29,7 +27,11 @@ public class SQSScanner extends AWSScanner<AmazonSQSClient> {
 		ListQueuesResult result = getClient().listQueues();
 
 		for (String url : result.getQueueUrls()) {
-			scanQueue(url);
+			try {
+				scanQueue(url);
+			} catch (RuntimeException e) {
+				maybeThrow(e);
+			}
 		}
 	}
 
@@ -40,10 +42,10 @@ public class SQSScanner extends AWSScanner<AmazonSQSClient> {
 
 	private void projectQueue(String url, Map<String, String> attrsOrig) {
 
-		Map<String,String> attrs = Maps.newHashMap();
-		attrsOrig.forEach((k,v) -> {
-			if (k.length()>1) {
-				String modifiedKey = "aws_"+Character.toLowerCase(k.charAt(0))+k.substring(1, k.length());
+		Map<String, String> attrs = Maps.newHashMap();
+		attrsOrig.forEach((k, v) -> {
+			if (k.length() > 1) {
+				String modifiedKey = "aws_" + Character.toLowerCase(k.charAt(0)) + k.substring(1, k.length());
 				attrs.put(modifiedKey, v);
 			}
 		});
@@ -52,14 +54,16 @@ public class SQSScanner extends AWSScanner<AmazonSQSClient> {
 		n.put("aws_region", getRegion().getName());
 		n.put("url", url);
 		n.put("aws_arn", attrs.get("aws_queueArn"));
-		attrs.forEach((k,v) -> {
-		
+		attrs.forEach((k, v) -> {
+
 			n.put(k, v);
 		});
 
 		String cypher = "merge (t:AwsSqsQueue {aws_arn:{aws_arn}}) set t+={props}, t.updateTs=timestamp() return t";
 
-		getNeoRxClient().execCypher(cypher, "aws_arn", n.path("aws_arn").asText(), "props", n);
+		getNeoRxClient().execCypher(cypher, "aws_arn", n.path("aws_arn").asText(), "props", n).forEach(r -> {
+			getShadowAttributeRemover().removeTagAttributes("AwsSqsQueue", n, r);
+		});
 
 		cypher = "match (a:AwsAccount {aws_account:{account}}), (q:AwsSqsQueue {aws_account:{account}}) MERGE (a)-[r:OWNS]->(q) set r.updateTs=timestamp()";
 

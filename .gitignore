@@ -7,3 +7,4 @@ build/
 projector-aws/bin/
 bin/
 .vscode/
+PrivateTest.java

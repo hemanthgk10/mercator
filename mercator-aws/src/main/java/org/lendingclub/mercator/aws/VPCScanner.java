@@ -47,7 +47,7 @@ public class VPCScanner extends AbstractEC2Scanner {
 		GraphNodeGarbageCollector gc = newGarbageCollector().region(getRegion()).label("AwsVpc");
 		NeoRxClient neoRx = getNeoRxClient();
 		Preconditions.checkNotNull(neoRx);
-
+		
 		result.getVpcs().forEach(it -> {
 			try {					
 				ObjectNode n = convertAwsObject(it, getRegion());
@@ -58,10 +58,13 @@ public class VPCScanner extends AbstractEC2Scanner {
 						+ "(x:AwsVpc {aws_arn:{aws_arn}}) "
 						+ "merge (x)-[r:CONTAINS]->(y) set r.updateTs=timestamp()";
 				
-				neoRx.execCypher(cypher, "aws_arn",n.path("aws_arn").asText(), "props",n).forEach(gc.MERGE_ACTION);
+				neoRx.execCypher(cypher, "aws_arn",n.path("aws_arn").asText(), "props",n).forEach(r->{
+					gc.MERGE_ACTION.call(r);
+					getShadowAttributeRemover().removeTagAttributes("AwsVpc", n, r);
+				});
 				neoRx.execCypher(mapToSubnetCypher, "aws_arn",n.path("aws_arn").asText(), "aws_vpcId",n.path("aws_vpcId").asText());	
 			} catch (RuntimeException e) { 
-				logger.warn("problem scanning VPC", e);
+				maybeThrow(e);
 			}
 		});
 	

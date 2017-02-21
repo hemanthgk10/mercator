@@ -23,23 +23,29 @@ public class SNSScanner extends AWSScanner<AmazonSNSClient> {
 
 	@Override
 	protected AmazonSNSClient createClient() {
-		return (AmazonSNSClient) builder.configure(AmazonSNSClientBuilder
-				.standard()).build();
+		return (AmazonSNSClient) builder.configure(AmazonSNSClientBuilder.standard()).build();
 	}
 
 	@Override
 	protected void doScan() {
 
-		ListTopicsResult result = getClient().listTopics();
-		String token = result.getNextToken();
-		do {
 
-			for (Topic topic : result.getTopics()) {
-				projectTopic(topic);
-				scanSubscriptions(topic);
-			}
-			result = getClient().listTopics(token);
-		} while ((!Strings.isNullOrEmpty(token)) && (!token.equals("null")));
+			ListTopicsResult result = getClient().listTopics();
+			String token = null;
+			do {
+				token = result.getNextToken();
+				for (Topic topic : result.getTopics()) {
+					try {
+						projectTopic(topic);
+						scanSubscriptions(topic);
+					} catch (RuntimeException e) {
+						maybeThrow(e);
+					}
+				}
+				result = getClient().listTopics(token);
+			} while (tokenHasNext(token));
+	
+
 	}
 
 	private void projectTopic(Topic topic) {
@@ -54,8 +60,9 @@ public class SNSScanner extends AWSScanner<AmazonSNSClient> {
 		n.put("name", parts.get(parts.size() - 1));
 		String cypher = "merge (t:AwsSnsTopic {aws_arn:{arn}}) set t+={props}, t.updateTs=timestamp() return t";
 
-		getNeoRxClient().execCypher(cypher, "arn", arn, "props", n);
-
+		getNeoRxClient().execCypher(cypher, "arn", arn, "props", n).forEach(r -> {
+			getShadowAttributeRemover().removeTagAttributes("AwsSnsTopic", n, r);
+		});
 		cypher = "match (a:AwsAccount {aws_account:{account}}), (t:AwsSnsTopic {aws_account:{account}}) MERGE (a)-[r:OWNS]->(t) set r.updateTs=timestamp()";
 
 		getNeoRxClient().execCypher(cypher, "account", getAccountId());
@@ -65,9 +72,9 @@ public class SNSScanner extends AWSScanner<AmazonSNSClient> {
 	private void scanSubscriptions(Topic topic) {
 
 		ListSubscriptionsByTopicResult result = getClient().listSubscriptionsByTopic(topic.getTopicArn());
-		String token = result.getNextToken();
+		String token = null;
 		do {
-
+			token = result.getNextToken();
 			for (Subscription subscription : result.getSubscriptions()) {
 				projectSubscription(topic, subscription);
 
@@ -78,7 +85,7 @@ public class SNSScanner extends AWSScanner<AmazonSNSClient> {
 	}
 
 	private void projectSubscription(Topic topic, Subscription subscription) {
-	
+
 		ObjectNode n = mapper.createObjectNode();
 		n.put("aws_topicArn", subscription.getTopicArn());
 		n.put("aws_endpoint", subscription.getEndpoint());
@@ -98,8 +105,7 @@ public class SNSScanner extends AWSScanner<AmazonSNSClient> {
 		String targetArn = subscription.getEndpoint();
 		if (targetArn.startsWith("arn:aws:sqs:")) {
 			cypher = "match (a:AwsSnsTopic {aws_arn:{topicArn}}),(q:AwsSqsQueue {aws_arn:{queueArn}}) MERGE (a)-[r:PUBLISHES]->(q) set r.updateTs=timestamp()";
-			getNeoRxClient().execCypher(cypher, "topicArn", subscription.getTopicArn(), "queueArn",
-					targetArn);
+			getNeoRxClient().execCypher(cypher, "topicArn", subscription.getTopicArn(), "queueArn", targetArn);
 
 		}
 	}

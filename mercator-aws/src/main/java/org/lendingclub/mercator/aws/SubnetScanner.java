@@ -65,10 +65,15 @@ public class SubnetScanner extends AbstractEC2Scanner{
 				
 				NeoRxClient client = getNeoRxClient();
 				Preconditions.checkNotNull(client);
-				client.execCypher(cypher, "aws_arn",n.get("aws_arn").asText(),"props",n).forEach(gc.MERGE_ACTION);
+				client.execCypher(cypher, "aws_arn",n.get("aws_arn").asText(),"props",n).forEach(r->{
+					gc.MERGE_ACTION.call(r);
+					getShadowAttributeRemover().removeTagAttributes("AwsSubnet", n, r);
+				});
+				
 
 			} catch (RuntimeException e) {
-				logger.warn("problem scanning subnets",e);
+				gc.markException(e);
+				maybeThrow(e,"problem scanning subnets");
 			}
 		});
 		

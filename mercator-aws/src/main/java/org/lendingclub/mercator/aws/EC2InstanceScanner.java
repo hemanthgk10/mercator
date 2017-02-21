@@ -15,8 +15,10 @@ package org.lendingclub.mercator.aws;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import org.lendingclub.mercator.core.Projector;
 
@@ -26,17 +28,20 @@ import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.lightsail.model.transform.IsVpcPeeredResultJsonUnmarshaller;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 
 import io.macgyver.neorx.rest.NeoRxClient;
 
 public class EC2InstanceScanner extends AbstractEC2Scanner {
 
+	
 	public EC2InstanceScanner(AWSScannerBuilder builder) {
 		super(builder);
-		// TODO Auto-generated constructor stub
 	}
 
 	@Override
@@ -78,7 +83,11 @@ public class EC2InstanceScanner extends AbstractEC2Scanner {
 
 			String createInstanceCypher = "merge (x:AwsEc2Instance {aws_arn:{instanceArn}}) set x+={props}, x.updateTs=timestamp() return x";
 			if (gc != null) {
-				neoRx.execCypher(createInstanceCypher, "instanceArn", instanceArn, "props", n).forEach(gc.MERGE_ACTION);
+				neoRx.execCypher(createInstanceCypher, "instanceArn", instanceArn, "props", n).forEach(it -> {
+					gc.MERGE_ACTION.call(it);
+					shadowRemover.removeTagAttributes("AwsEc2Instance", n, it);
+				
+				});
 			}
 
 			if (!Strings.isNullOrEmpty(imageId)) {
@@ -105,24 +114,30 @@ public class EC2InstanceScanner extends AbstractEC2Scanner {
 	public void scanInstanceId(String... instanceIdList) {
 
 		Arrays.asList(instanceIdList).forEach(instanceId -> {
-			DescribeInstancesResult results = getClient()
-					.describeInstances(new DescribeInstancesRequest().withInstanceIds(instanceId));
-			results.getReservations().forEach(reservation -> {
-				reservation.getInstances().forEach(instance -> {
-					try {
-						writeInstance(instance);
-					} catch (RuntimeException e) {
-						maybeThrow(e);
-					}
+
+			String token = null;
+			DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
+
+			do {
+				DescribeInstancesResult results = getClient().describeInstances();
+				results.getReservations().forEach(reservation -> {
+					reservation.getInstances().forEach(instance -> {
+						try {
+							writeInstance(instance);
+						} catch (RuntimeException e) {
+							maybeThrow(e);
+						}
+					});
 				});
-			});
+				request.setNextToken(results.getNextToken());
+			} while (tokenHasNext(token));
 		});
 	}
 
 	@Override
 	protected void doScan() {
-		GraphNodeGarbageCollector gc = new GraphNodeGarbageCollector()
-				.neo4j(getNeoRxClient()).account(getAccountId()).label("AwsEc2Instance").region(getRegion().getName());
+		GraphNodeGarbageCollector gc = new GraphNodeGarbageCollector().neo4j(getNeoRxClient()).account(getAccountId())
+				.label("AwsEc2Instance").region(getRegion().getName());
 
 		forEachInstance(getRegion(), instance -> {
 
@@ -157,4 +172,7 @@ public class EC2InstanceScanner extends AbstractEC2Scanner {
 			});
 		}
 	}
+
+	
+
 }

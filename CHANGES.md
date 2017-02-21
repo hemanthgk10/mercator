@@ -1,3 +1,7 @@
+## 1.1.0
+* minor breaking api changes
+* upgrade slf4j and logback
+* add AWSScannerGroup
 
 ## 1.0.6
 * fix bug in ASG scanning

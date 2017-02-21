@@ -22,7 +22,6 @@ import com.google.common.base.Strings;
 
 public class SecurityGroupScanner extends AbstractEC2Scanner {
 
-
 	public SecurityGroupScanner(AWSScannerBuilder builder) {
 		super(builder);
 
@@ -30,9 +29,10 @@ public class SecurityGroupScanner extends AbstractEC2Scanner {
 
 	@Override
 	public Optional<String> computeArn(JsonNode n) {
-		
-		//arn:aws:ec2:region:account-id:security-group/security-group-id
-		return Optional.of(String.format("arn:aws:ec2:%s:%s:security-group/%s", n.get("aws_region").asText(),n.get("aws_account").asText(),n.get("aws_groupId").asText()));
+
+		// arn:aws:ec2:region:account-id:security-group/security-group-id
+		return Optional.of(String.format("arn:aws:ec2:%s:%s:security-group/%s", n.get("aws_region").asText(),
+				n.get("aws_account").asText(), n.get("aws_groupId").asText()));
 
 	}
 
@@ -45,19 +45,26 @@ public class SecurityGroupScanner extends AbstractEC2Scanner {
 		GraphNodeGarbageCollector gc = newGarbageCollector().region(getRegion()).label("AwsSecurityGroup");
 		result.getSecurityGroups().forEach(sg -> {
 
-			ObjectNode g = convertAwsObject(sg, getRegion());
+			try {
+				
+				ObjectNode g = convertAwsObject(sg, getRegion());
 
-			// non-VPC security groups don't have a VPC
-			String vpcId = Strings.nullToEmpty(sg.getVpcId());
-			String cypher = "merge (sg:AwsSecurityGroup {aws_arn:{arn}}) set sg+={props}, sg.updateTs={now} return sg";
+				// non-VPC security groups don't have a VPC
+				String vpcId = Strings.nullToEmpty(sg.getVpcId());
+				String cypher = "merge (sg:AwsSecurityGroup {aws_arn:{arn}}) set sg+={props}, sg.updateTs={now} return sg";
 
-			JsonNode xx = getNeoRxClient().execCypher(cypher, "arn", g.path("aws_arn").asText(), "props", g,
-					"now", now).toBlocking().first();
-
-			gc.updateEarliestTimestamp(xx);
-			if (!vpcId.isEmpty()) {
-				cypher = "match (v:AwsVpc {aws_vpcId: {vpcId}}), (sg:AwsSecurityGroup {aws_arn:{sg_arn}}) merge (sg)-[:RESIDES_IN]->(v)";
-				getNeoRxClient().execCypher(cypher, "vpcId", vpcId, "sg_arn", g.path("aws_arn").asText());
+				JsonNode xx = getNeoRxClient()
+						.execCypher(cypher, "arn", g.path(AWS_ARN_ATTRIBUTE).asText(), "props", g, "now", now).toBlocking()
+						.first();
+				getShadowAttributeRemover().removeTagAttributes("AwsSecurityGroup", g, xx);
+				gc.updateEarliestTimestamp(xx);
+				if (!vpcId.isEmpty()) {
+					cypher = "match (v:AwsVpc {aws_vpcId: {vpcId}}), (sg:AwsSecurityGroup {aws_arn:{sg_arn}}) merge (sg)-[:RESIDES_IN]->(v)";
+					getNeoRxClient().execCypher(cypher, "vpcId", vpcId, "sg_arn", g.path("aws_arn").asText());
+				}
+			} catch (RuntimeException e) {
+				gc.markException(e);
+				maybeThrow(e, "problem scanning security groups");
 			}
 		});
 

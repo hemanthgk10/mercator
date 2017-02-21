@@ -1,42 +1,30 @@
 package org.lendingclub.mercator.aws;
 
-import com.amazonaws.AmazonWebServiceClient;
-
-public class AllEntityScanner extends AWSScanner<AmazonWebServiceClient> {
+public class AllEntityScanner extends AWSScannerGroup {
 
 	public AllEntityScanner(AWSScannerBuilder builder) {
-		super(builder,null);
-
+		super(builder);
+		
+		addScannerType(AccountScanner.class);
+		addScannerType(RegionScanner.class);
+		addScannerType(AvailabilityZoneScanner.class);
+		
+		addScannerType(SubnetScanner.class);
+		addScannerType(VPCScanner.class);
+		addScannerType(SecurityGroupScanner.class);
+		addScannerType(AMIScanner.class);
+		addScannerType(EC2InstanceScanner.class);
+		addScannerType(ELBScanner.class);
+		addScannerType(LaunchConfigScanner.class);
+		addScannerType(ASGScanner.class);
+		addScannerType(RDSInstanceScanner.class);
+		addScannerType(S3BucketScanner.class);
+		addScannerType(SQSScanner.class);
+		addScannerType(SNSScanner.class);
+		
+		// addScannerType(KinesisScanner.class);  // Kinesis seems to be heavily rate-limited...leave it off for now
+		
 	}
-
-	@Override
-	protected AmazonWebServiceClient createClient() {
-	
-		return null;
-	}
-
-	@Override
-	protected void doScan() {
-	
-		builder.build(AccountScanner.class).scan();
-		builder.build(RegionScanner.class).scan();
-		builder.build(AvailabilityZoneScanner.class).scan();
-		builder.build(SubnetScanner.class).scan();
-		builder.build(VPCScanner.class).scan();
-		builder.build(SecurityGroupScanner.class).scan();
-		builder.build(AMIScanner.class).scan();
-		builder.build(EC2InstanceScanner.class).scan();
-		builder.build(ELBScanner.class).scan();
-		builder.build(LaunchConfigScanner.class).scan();
-		builder.build(ASGScanner.class).scan();
-		builder.build(RDSInstanceScanner.class).scan();
-		builder.build(S3Scanner.class).scan();
-		builder.build(SQSScanner.class).scan();
-		builder.build(SNSScanner.class).scan();
-		builder.build(KinesisScanner.class).scan();
-
-	}
-
 
 
 }

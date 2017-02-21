@@ -38,18 +38,24 @@ public abstract class AbstractScanner implements Scanner {
 		return builder.isFailOnError();
 	}
 	
-	protected void maybeThrow(Exception e) {
+	
+	public void maybeThrow(Exception e, String message) {
 		if (isFailOnError()) {
 			if (e instanceof RuntimeException) {
 				throw ((RuntimeException) e);
 			}
 			else {
-				throw new ProjectorException(e);
+				throw new MercatorException(e);
 			}
 		}
 		else {
-			logger.warn("problem",e);
+			logger.warn(message,e);
 		}
+	}
+	
+	public void maybeThrow(Exception e) {
+		maybeThrow(e,"scanning problem");
+		
 	}
 	
 	public SchemaManager getSchemaManager() {

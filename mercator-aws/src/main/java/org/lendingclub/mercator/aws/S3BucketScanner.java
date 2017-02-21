@@ -12,9 +12,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Strings;
 
-public class S3Scanner extends AWSScanner<AmazonS3Client> {
+public class S3BucketScanner extends AWSScanner<AmazonS3Client> {
 
-	public S3Scanner(AWSScannerBuilder builder) {
+	public S3BucketScanner(AWSScannerBuilder builder) {
 		super(builder,AmazonS3Client.class);
 	}
 
@@ -60,7 +60,9 @@ public class S3Scanner extends AWSScanner<AmazonS3Client> {
 
 		String cypher = "merge (b:AwsS3Bucket { name:{name} }) set b+={props}, b.updateTs=timestamp()";
 		
-		getNeoRxClient().execCypher(cypher, "name",b.getName(), "props",props);
+		getNeoRxClient().execCypher(cypher, "name",b.getName(), "props",props).forEach(r->{
+			getShadowAttributeRemover().removeTagAttributes("AwsS3Bucket", props, r);
+		});
 		
 		cypher = "match (a:AwsAccount {aws_account:{account}}), (b:AwsS3Bucket {aws_account:{account}}) MERGE (a)-[r:OWNS]->(b) set r.updateTs=timestamp()";
 		

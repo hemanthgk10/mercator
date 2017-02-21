@@ -205,5 +205,10 @@ public class  AWSScannerBuilder extends ScannerBuilder<AWSScanner> {
 	public Region getRegion() {
 		return region;
 	}
+
+	@Override
+	public AWSScannerBuilder withFailOnError(boolean b) {
+		return super.withFailOnError(b);
+	}
 	
 }

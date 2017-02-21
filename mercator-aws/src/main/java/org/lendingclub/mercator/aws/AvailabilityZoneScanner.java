@@ -52,6 +52,7 @@ public class AvailabilityZoneScanner extends AbstractEC2Scanner{
 		result.getAvailabilityZones().forEach(it -> {
 			
 			try {
+		
 				ObjectNode n = convertAwsObject(it, getRegion());
 				
 				String cypher = "merge (y:AwsAvailabilityZone {aws_zoneName:{aws_zoneName}, aws_region:{aws_region}, aws_account:{aws_account}}) set y+={props} set y.updateTs=timestamp() return y";
@@ -70,7 +71,8 @@ public class AvailabilityZoneScanner extends AbstractEC2Scanner{
 				neoRx.execCypher(mapToRegionCypher, "aws_zoneName",n.path("aws_zoneName").asText(), AWSScanner.AWS_REGION_ATTRIBUTE,n.path(AWSScanner.AWS_REGION_ATTRIBUTE).asText(),AccountScanner. ACCOUNT_ATTRIBUTE,getAccountId());
 
 			} catch (RuntimeException e) { 
-				logger.warn("problem scanning availability zones",e);
+				gc.markException(e);
+				maybeThrow(e,"problem scanning availability zones");
 			}		
 		});		
 		gc.invoke();

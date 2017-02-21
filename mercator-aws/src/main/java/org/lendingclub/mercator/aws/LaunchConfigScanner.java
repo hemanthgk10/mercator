@@ -35,18 +35,13 @@ import com.google.common.base.Strings;
 
 public class LaunchConfigScanner extends AWSScanner<AmazonAutoScalingClient> {
 
-
-
-
-
 	public LaunchConfigScanner(AWSScannerBuilder builder) {
 		super(builder, AmazonAutoScalingClient.class);
 	}
 
 	@Override
 	protected AmazonAutoScalingClient createClient() {
-		return (AmazonAutoScalingClient) builder.configure(AmazonAutoScalingClientBuilder
-				.standard()).build();
+		return (AmazonAutoScalingClient) builder.configure(AmazonAutoScalingClientBuilder.standard()).build();
 
 	}
 
@@ -56,35 +51,48 @@ public class LaunchConfigScanner extends AWSScanner<AmazonAutoScalingClient> {
 	}
 
 	@Override
-	protected void doScan() {	
-		GraphNodeGarbageCollector gc = new GraphNodeGarbageCollector().label("AwsLaunchConfig").account(getAccountId()).neo4j(getNeoRxClient()).region(getRegion());
-				
+	protected void doScan() {
+		GraphNodeGarbageCollector gc = new GraphNodeGarbageCollector().label("AwsLaunchConfig").account(getAccountId())
+				.neo4j(getNeoRxClient()).region(getRegion());
+
 		forEachLaunchConfig(getRegion(), config -> {
-			ObjectNode n = convertAwsObject(config, getRegion());
-			List<String> securityGroups = getSecurityGroups(config);
+			try {
+				ObjectNode n = convertAwsObject(config, getRegion());
+				List<String> securityGroups = getSecurityGroups(config);
 
-			String cypher = "merge (x:AwsLaunchConfig {aws_arn:{aws_arn}}) set x+={props}, x.aws_securityGroups={sg}, x.updateTs=timestamp() return x";
-		
-			Preconditions.checkNotNull(getNeoRxClient());
+				String cypher = "merge (x:AwsLaunchConfig {aws_arn:{aws_arn}}) set x+={props}, x.aws_securityGroups={sg}, x.updateTs=timestamp() return x";
 
-			getNeoRxClient().execCypher(cypher, "aws_arn", n.path("aws_arn").asText(), "props", n, "sg", securityGroups).forEach(gc.MERGE_ACTION);
+				Preconditions.checkNotNull(getNeoRxClient());
+
+				getNeoRxClient()
+						.execCypher(cypher, "aws_arn", n.path("aws_arn").asText(), "props", n, "sg", securityGroups)
+						.forEach(r -> {
+							gc.MERGE_ACTION.call(r);
+							getShadowAttributeRemover().removeTagAttributes("AwsLaunchConfig", n, r);
+						});
+			} catch (RuntimeException e) {
+				gc.markException(e);
+				maybeThrow(e);
+			}
 		});
 		gc.invoke();
 	}
 
-	private void forEachLaunchConfig(Region region, Consumer<LaunchConfiguration> consumer) { 
-		
-		DescribeLaunchConfigurationsResult results = getClient().describeLaunchConfigurations(new DescribeLaunchConfigurationsRequest());	
+	private void forEachLaunchConfig(Region region, Consumer<LaunchConfiguration> consumer) {
+
+		DescribeLaunchConfigurationsResult results = getClient()
+				.describeLaunchConfigurations(new DescribeLaunchConfigurationsRequest());
 		String token = results.getNextToken();
 		results.getLaunchConfigurations().forEach(consumer);
-		
-		while (!Strings.isNullOrEmpty(token) && !token.equals("null")) { 
-			results = getClient().describeLaunchConfigurations(new DescribeLaunchConfigurationsRequest().withNextToken(token));
+
+		while (tokenHasNext(token)) {
+			results = getClient()
+					.describeLaunchConfigurations(new DescribeLaunchConfigurationsRequest().withNextToken(token));
 			token = results.getNextToken();
 			results.getLaunchConfigurations().forEach(consumer);
 		}
 	}
-	
+
 	protected List<String> getSecurityGroups(LaunchConfiguration c) {
 		List<String> toReturnList = new ArrayList<>();
 		JsonNode n = new ObjectMapper().valueToTree(c);

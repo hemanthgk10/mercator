@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import org.lendingclub.mercator.core.MercatorException;
 
 import com.amazonaws.regions.Region;
 import com.amazonaws.services.elasticloadbalancing.AmazonElasticLoadBalancingClient;
@@ -91,6 +92,7 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 			if (gc != null) {
 				gc.MERGE_ACTION.call(it);
 			}
+		
 		});
 
 		mapElbRelationships(elb, elbArn, getRegion().getName());
@@ -107,7 +109,8 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 
 			} catch (RuntimeException e) {
 				gc.markException(e);
-				logger.warn("problem scanning ELBs", e);
+				maybeThrow(e,"problem scanning ELB");
+				
 			}
 		});
 
@@ -128,7 +131,7 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 			results.getLoadBalancerDescriptions().forEach(consumer);
 			writeTagsToNeo4j(results, region, getClient());
 			request.setMarker(marker);
-		} while  (!Strings.isNullOrEmpty(marker) && !marker.equals("null"));
+		} while  (tokenHasNext(marker));
 	}
 
 	protected void writeTagsToNeo4j(DescribeLoadBalancersResult results, Region region,
@@ -147,16 +150,20 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 				describeTagsResult.getTagDescriptions().forEach(tag -> {
 					try {
 						ObjectNode n = convertAwsObject(tag, region);
+						
 						String elbArn = n.path("aws_arn").asText();
 
 						String cypher = "merge (x:AwsElb {aws_arn:{aws_arn}}) set x+={props} return x";
 
 						Preconditions.checkNotNull(getNeoRxClient());
 
-						getNeoRxClient().execCypher(cypher, "aws_arn", elbArn, "props", n);
+						getNeoRxClient().execCypher(cypher, "aws_arn", elbArn, "props", n).forEach(r -> {
+							getShadowAttributeRemover().removeTagAttributes("AwsElb", n, r);
+						});
 						
 					} catch (RuntimeException e) {
-						logger.warn("problem scanning ELB tags", e);
+						maybeThrow(e,"problem scanning ELB tags");
+						
 					}
 				});
 			}

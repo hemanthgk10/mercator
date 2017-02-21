@@ -54,15 +54,23 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsAsg").region(getRegion());
 
 		forEachAsg(asg -> {
-			ObjectNode n = convertAwsObject(asg, getRegion());
-			String asgArn = n.path("aws_arn").asText();
+			try {
+				ObjectNode n = convertAwsObject(asg, getRegion());
+				String asgArn = n.path("aws_arn").asText();
 
-			String cypher = "merge (x:AwsAsg {aws_arn:{aws_arn}}) set x+={props}, x.updateTs=timestamp() return x";
+				String cypher = "merge (x:AwsAsg {aws_arn:{aws_arn}}) set x+={props}, x.updateTs=timestamp() return x";
 
-			Preconditions.checkNotNull(getNeoRxClient());
-			getNeoRxClient().execCypher(cypher, "aws_arn", asgArn, "props", n).forEach(gc.MERGE_ACTION);
+				Preconditions.checkNotNull(getNeoRxClient());
+				getNeoRxClient().execCypher(cypher, "aws_arn", asgArn, "props", n).forEach(r -> {
+					gc.MERGE_ACTION.call(r);
+					getShadowAttributeRemover().removeTagAttributes("AwsAsg", n, r);
+				});
 
-			mapAsgRelationships(asg, asgArn, getRegion().getName());
+				mapAsgRelationships(asg, asgArn, getRegion().getName());
+			} catch (RuntimeException e) {
+				gc.markException(e);
+				maybeThrow(e, "problem scanning asg");
+			}
 
 		}, asgNames);
 		if (asgNames == null || asgNames.length == 0) {
@@ -71,7 +79,6 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 		}
 	}
 
-	
 	private void forEachAsg(Consumer<AutoScalingGroup> consumer, String... asgNames) {
 
 		DescribeAutoScalingGroupsRequest request = new DescribeAutoScalingGroupsRequest();
@@ -86,7 +93,7 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 
 			request.setNextToken(token);
 
-		} while (!Strings.isNullOrEmpty(token) && !token.equals("null"));
+		} while (tokenHasNext(token));
 	}
 
 	protected void mapAsgRelationships(AutoScalingGroup asg, String asgArn, String region) {

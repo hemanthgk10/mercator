@@ -65,7 +65,8 @@ public class RegionScanner extends AbstractEC2Scanner {
 										n).forEach(gc.MERGE_ACTION);
 
 							} catch (RuntimeException e) {
-								logger.warn("problem scanning regions", e);
+								gc.markException(e);
+								maybeThrow(e,"problem scanning regions");
 							}
 						});
 		

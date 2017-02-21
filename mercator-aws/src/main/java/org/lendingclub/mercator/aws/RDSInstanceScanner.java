@@ -74,7 +74,10 @@ public class RDSInstanceScanner extends AWSScanner<AmazonRDSClient> {
 				String rdsArn = n.path("aws_arn").asText();
 				
 				String cypher = "merge (x:AwsRdsInstance {aws_arn:{aws_arn}}) set x+={props} set x.updateTs=timestamp()";
-				neoRx.execCypher(cypher, "aws_arn", rdsArn, "props",n).forEach(gc.MERGE_ACTION);
+				neoRx.execCypher(cypher, "aws_arn", rdsArn, "props",n).forEach(r->{
+					gc.MERGE_ACTION.call(r);
+					getShadowAttributeRemover().removeTagAttributes("AwsRdsInstance", n, r);
+				});
 				
 				List<String> subnets = getSubnets(instance);
 				for (String s : subnets) { 
@@ -86,7 +89,8 @@ public class RDSInstanceScanner extends AWSScanner<AmazonRDSClient> {
 					neoRx.execCypher(mapToSubnetCypher, "rdsArn",rdsArn, "subnetArn",subnetArn);
 				}
 			} catch (RuntimeException e) { 
-				logger.warn("problem scanning RDS Instance", e);
+				gc.markException(e);
+				maybeThrow(e,"problem scanning RDS Instance");
 			}
 		});
 		gc.invoke();
@@ -99,7 +103,7 @@ public class RDSInstanceScanner extends AWSScanner<AmazonRDSClient> {
 
 		result.getDBInstances().forEach(consumer);
 		
-		while (!Strings.isNullOrEmpty(marker) && !marker.equals("null")) { 
+		while (tokenHasNext(marker)) { 
 			result = getClient().describeDBInstances().withMarker(marker);
 			marker = result.getMarker();
 			result.getDBInstances().forEach(consumer);

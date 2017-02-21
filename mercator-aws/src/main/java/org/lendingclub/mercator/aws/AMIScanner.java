@@ -22,6 +22,7 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
+import com.amazonaws.services.ec2.model.Vpc;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Preconditions;
@@ -64,12 +65,17 @@ public class AMIScanner extends AbstractEC2Scanner {
 		result.getImages().forEach(i -> { 
 			try { 
 				ObjectNode n = convertAwsObject(i, getRegion());
+			
 				
-				String cypher = "merge (x:AwsAmi {aws_arn:{aws_arn}}) set x+={props} set x.updateTs=timestamp()";
-				neoRx.execCypher(cypher, "aws_arn", n.path("aws_arn").asText(), "props",n).forEach(gc.MERGE_ACTION);	
+				String cypher = "merge (x:AwsAmi {aws_arn:{aws_arn}}) set x+={props} set x.updateTs=timestamp() return x";
+				neoRx.execCypher(cypher, "aws_arn", n.path("aws_arn").asText(), "props",n).forEach( r->{
+					gc.MERGE_ACTION.call(r);
+					getShadowAttributeRemover().removeTagAttributes("AwsAmi", n, r);
+				});
 				
 			} catch (RuntimeException e) { 
-				logger.warn("problem scanning AMI", e);
+				gc.markException(e);
+				maybeThrow(e,"problem scanning AMI "+i.getImageId());
 			}
 		});
 		gc.invoke();

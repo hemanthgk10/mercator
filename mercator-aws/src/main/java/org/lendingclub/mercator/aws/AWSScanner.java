@@ -6,7 +6,7 @@ import java.util.Optional;
 
 import org.lendingclub.mercator.core.AbstractScanner;
 import org.lendingclub.mercator.core.Projector;
-import org.lendingclub.mercator.core.ProjectorException;
+import org.lendingclub.mercator.core.MercatorException;
 import org.lendingclub.mercator.core.Scanner;
 import org.lendingclub.mercator.core.SchemaManager;
 import org.slf4j.Logger;
@@ -20,7 +20,9 @@ import com.amazonaws.regions.Regions;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
 import io.macgyver.neorx.rest.NeoRxClient;
@@ -37,14 +39,17 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 	private ScannerMetricCollector metricCollector = new ScannerMetricCollector();
 	protected AWSScannerBuilder builder;
 	JsonConverter converter;
-	
+
 	Class<? extends AmazonWebServiceClient> clientType;
-	
-	public static final String AWS_REGION_ATTRIBUTE="aws_region";
+
+	ShadowAttributeRemover shadowRemover;
+	public static final String AWS_REGION_ATTRIBUTE = "aws_region";
+	public static final String AWS_ACCOUNT_ATTRIBUTE="aws_account";
+	public static final String AWS_ARN_ATTRIBUTE="aws_arn";
 
 	public AWSScanner(AWSScannerBuilder builder, Class<? extends AmazonWebServiceClient> clientType) {
-		super(builder,Maps.newHashMap());
-		if (builder.getRegion()==null) {
+		super(builder, Maps.newHashMap());
+		if (builder.getRegion() == null) {
 			builder.withRegion(Region.getRegion(Regions.US_EAST_1));
 		}
 		this.clientType = clientType;
@@ -52,13 +57,17 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 		Preconditions.checkNotNull(builder);
 		Preconditions.checkNotNull(builder.getRegion());
 		Preconditions.checkNotNull(builder.getProjector());
-		
+
 		this.builder = builder;
 		this.region = builder.getRegion();
 		this.projector = builder.getProjector();
-		
-		
 
+		this.shadowRemover = new ShadowAttributeRemover(getNeoRxClient());
+
+	}
+
+	protected ShadowAttributeRemover getShadowAttributeRemover() {
+		return shadowRemover;
 	}
 
 	protected <T extends AmazonWebServiceClient> T createClient(Class<T> clazz) {
@@ -70,27 +79,29 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 			return (T) builder.configure((AwsSyncClientBuilder) m.invoke(null)).build();
 		} catch (ClassNotFoundException | IllegalAccessException | InvocationTargetException
 				| NoSuchMethodException e) {
-			throw new ProjectorException(e);
+			throw new MercatorException(e);
 		}
 
 	}
-	protected  T createClient() {
+
+	protected T createClient() {
 		return (T) createClient(clientType);
 	}
-	
+
 	public Projector getProjector() {
 		return projector;
 	}
+
 	@SuppressWarnings("unchecked")
 	public T getClient() {
-		if (this.client==null) {
+		if (this.client == null) {
 			this.client = createClient();
 		}
 		return (T) this.client;
 	}
 
 	public Region getRegion() {
-		
+
 		return region;
 	}
 
@@ -98,32 +109,40 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 		return (String) builder.getAccountIdSupplier().get();
 	}
 
-
 	public NeoRxClient getNeoRxClient() {
 		return projector.getNeoRxClient();
 	}
+
 	public final void scan() {
-	
+
 		long t0 = System.currentTimeMillis();
-		logger.info("start scan - account={} region={}",getAccountId(),getRegion());
-		doScan();
-		long t1 = System.currentTimeMillis();
-		logger.info("end scan - account={} region={} duration={} ms",getAccountId(),getRegion(),t1-t0);
+		try {
+			
+			logger.info("{} started scan", toString());
+
+			doScan();
+			long t1 = System.currentTimeMillis();
+			logger.info("{} ended scan duration={} ms", this, t1 - t0);
+		} catch (RuntimeException e) {
+			logger.warn("{} aborted scan duration={} ms", this, System.currentTimeMillis() - t0);
+			maybeThrow(e);
+		}
 	}
+
 	protected abstract void doScan();
 
 	public ObjectNode convertAwsObject(Object x, Region region) {
-		ObjectNode n = JsonConverter.newInstance(getAccountId(), region).toJson(x,null);
+		ObjectNode n = JsonConverter.newInstance(getAccountId(), region).toJson(x, null);
 		Optional<String> arn = computeArn(n);
 		if (arn.isPresent()) {
-			n.put("aws_arn", arn.get());
+			n.put(AWS_ARN_ATTRIBUTE, arn.get());
 		}
-		if (region!=null) {
-			n.put("aws_region", region.getName());
+		if (region != null) {
+			n.put(AWS_REGION_ATTRIBUTE, region.getName());
 		}
-		n.put("aws_account", getAccountId());
+		n.put(AWS_ACCOUNT_ATTRIBUTE, getAccountId());
 		return n;
-		
+
 	}
 
 	public GraphNodeGarbageCollector newGarbageCollector() {
@@ -136,8 +155,6 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 
 	}
 
-
-
 	@Override
 	public SchemaManager getSchemaManager() {
 		return new AWSSchemaManager(getNeoRxClient());
@@ -146,4 +163,24 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 	public RequestMetricCollector getMetricCollector() {
 		return metricCollector;
 	}
+
+	public String toString() {
+		String safeAccount = "unknown";
+		try {
+			safeAccount = getAccountId();
+		} catch (Exception e) {
+			// getAccountId() could trigger a callout...bad thing to happen from
+			// toString()
+		}
+		return MoreObjects.toStringHelper(this).add(AWS_REGION_ATTRIBUTE, getRegion().getName()).add(AWS_ACCOUNT_ATTRIBUTE, safeAccount)
+				.toString();
+	}
+
+	protected boolean tokenHasNext(String token) {
+		return (!Strings.isNullOrEmpty(token)) && (!token.equals("null"));
+
+	}
+	
+	
+	
 }
