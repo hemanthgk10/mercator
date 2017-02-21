@@ -64,9 +64,11 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 			marker = results.getNextMarker();
 			results.getLoadBalancerDescriptions().forEach(it -> {
 				projectElb(it, null);
+				
 			});
+			writeTagsToNeo4j(results, getRegion(), getClient());
 			request.setMarker(marker);
-		} while ((!Strings.isNullOrEmpty(marker)) && (!marker.equals("null")));
+		} while (tokenHasNext(marker));
 	}
 
 	@Override
