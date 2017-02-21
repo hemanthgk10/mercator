@@ -7,7 +7,7 @@ import org.kohsuke.github.GHOrganization;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
 import org.lendingclub.mercator.core.AbstractScanner;
-import org.lendingclub.mercator.core.ProjectorException;
+import org.lendingclub.mercator.core.MercatorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +35,7 @@ public class GitHubScanner extends AbstractScanner {
 				scanOrganization(org);
 			});
 		} catch (IOException e) {
-			throw new ProjectorException(e);
+			throw new MercatorException(e);
 		}
 
 	}
@@ -47,7 +47,7 @@ public class GitHubScanner extends AbstractScanner {
 	
 			scanOrganization(org);
 		} catch (IOException e) {
-			throw new ProjectorException(e);
+			throw new MercatorException(e);
 		}
 	}
 
@@ -66,7 +66,7 @@ public class GitHubScanner extends AbstractScanner {
 			getProjector().getNeoRxClient().execCypher(cypher, "url", n.path("url").asText(), "props", n);
 
 		} catch (IOException e) {
-			throw new ProjectorException(e);
+			throw new MercatorException(e);
 		}
 		try {
 			org.getRepositories().values().forEach(repo -> {
@@ -79,7 +79,7 @@ public class GitHubScanner extends AbstractScanner {
 						repo.getUrl().toString());
 			});
 		} catch (IOException e) {
-			throw new ProjectorException(e);
+			throw new MercatorException(e);
 		}
 	}
 
@@ -87,7 +87,7 @@ public class GitHubScanner extends AbstractScanner {
 		try {
 			scanRepository(getGitHubClient().getRepository(name));
 		} catch (IOException e) {
-			throw new ProjectorException(e);
+			throw new MercatorException(e);
 		}
 
 	}
@@ -144,7 +144,7 @@ public class GitHubScanner extends AbstractScanner {
 					return GitHub.connectAnonymously();
 				}
 			} catch (IOException e) {
-				throw new ProjectorException(e);
+				throw new MercatorException(e);
 			}
 
 		}
