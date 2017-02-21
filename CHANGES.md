@@ -1,3 +1,6 @@
+## 1.1.1
+* tags were not scanned on individual ELB scan requests
+
 ## 1.1.0
 * minor breaking api changes
 * upgrade slf4j and logback
