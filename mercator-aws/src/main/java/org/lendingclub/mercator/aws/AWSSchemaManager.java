@@ -52,6 +52,9 @@ public class AWSSchemaManager extends SchemaManager {
 
 		applyConstraint("CREATE  CONSTRAINT ON (a:AwsS3Bucket) assert a.aws_arn IS UNIQUE ");
 
+		applyConstraint("CREATE  CONSTRAINT ON (a:AwsRoute53HostedZone) assert a.aws_arn IS UNIQUE ");
+		
+		applyConstraint("CREATE  CONSTRAINT ON (a:AwsRoute53RecordSet) assert a.id IS UNIQUE ");
 	}
 
 }
