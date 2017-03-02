@@ -58,9 +58,11 @@ public class ShadowAttributeRemover {
 				attrs.stream().filter(new SanitizationFilter()).forEach(n -> {
 					fragments.add("x." + n);
 				});
-				String clause = Joiner.on(", ").join(fragments);
-				String cypher = "match (x:"+label+" {aws_arn:{aws_arn}}) remove " + clause + " return x";
-				neo4j.execCypher(cypher, "aws_arn", desired.get("aws_arn").asText());
+				if (!fragments.isEmpty()) {
+					String clause = Joiner.on(", ").join(fragments);
+					String cypher = "match (x:"+label+" {aws_arn:{aws_arn}}) remove " + clause + " return x";
+					neo4j.execCypher(cypher, "aws_arn", desired.get("aws_arn").asText());
+				}
 			}
 
 
