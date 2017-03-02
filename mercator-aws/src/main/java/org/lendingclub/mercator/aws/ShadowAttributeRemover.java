@@ -56,7 +56,7 @@ public class ShadowAttributeRemover {
 			if (!attrs.isEmpty()) {
 				List<String> fragments = Lists.newArrayList();
 				attrs.stream().filter(new SanitizationFilter()).forEach(n -> {
-					fragments.add("x." + n);
+					fragments.add("x.`" + n+"`");
 				});
 				if (!fragments.isEmpty()) {
 					String clause = Joiner.on(", ").join(fragments);
