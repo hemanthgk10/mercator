@@ -17,7 +17,7 @@ import com.google.common.base.Strings;
 public class SNSScanner extends AWSScanner<AmazonSNSClient> {
 
 	public SNSScanner(AWSScannerBuilder builder) {
-		super(builder, AmazonSNSClient.class);
+		super(builder, AmazonSNSClient.class,"AwsSnsTopic");
 
 	}
 
@@ -53,7 +53,7 @@ public class SNSScanner extends AWSScanner<AmazonSNSClient> {
 		String arn = topic.getTopicArn();
 
 		List<String> parts = Splitter.on(":").splitToList(arn);
-
+		incrementEntityCount();
 		ObjectNode n = mapper.createObjectNode();
 		n.put("aws_account", getAccountId());
 		n.put("aws_region", getRegion().getName());

@@ -36,7 +36,7 @@ public class RDSInstanceScanner extends AWSScanner<AmazonRDSClient> {
 
 
 	public RDSInstanceScanner(AWSScannerBuilder builder) {
-		super(builder,AmazonRDSClient.class);
+		super(builder,AmazonRDSClient.class,"AwsRdsInstance");
 	
 	}
 
@@ -63,7 +63,7 @@ public class RDSInstanceScanner extends AWSScanner<AmazonRDSClient> {
 	@Override
 	protected void doScan() {
 		
-		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsRdsInstance").region(getRegion());
+		GraphNodeGarbageCollector gc = newGarbageCollector().bindScannerContext();
 		
 		forEachInstance( instance -> {
 			try { 
@@ -89,11 +89,11 @@ public class RDSInstanceScanner extends AWSScanner<AmazonRDSClient> {
 					neoRx.execCypher(mapToSubnetCypher, "rdsArn",rdsArn, "subnetArn",subnetArn);
 				}
 			} catch (RuntimeException e) { 
-				gc.markException(e);
+		
 				maybeThrow(e,"problem scanning RDS Instance");
 			}
 		});
-		gc.invoke();
+	
 	} 
 	
 	private void forEachInstance(Consumer<DBInstance> consumer) { 

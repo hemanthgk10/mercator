@@ -16,6 +16,7 @@ package org.lendingclub.mercator.aws;
 import java.util.Optional;
 
 import org.lendingclub.mercator.core.Projector;
+import org.lendingclub.mercator.core.ScannerContext;
 
 import com.amazonaws.AmazonWebServiceClient;
 import com.amazonaws.regions.Region;
@@ -69,7 +70,7 @@ public class SubnetScanner extends AbstractEC2Scanner{
 					gc.MERGE_ACTION.call(r);
 					getShadowAttributeRemover().removeTagAttributes("AwsSubnet", n, r);
 				});
-				
+				incrementEntityCount();
 
 			} catch (RuntimeException e) {
 				gc.markException(e);

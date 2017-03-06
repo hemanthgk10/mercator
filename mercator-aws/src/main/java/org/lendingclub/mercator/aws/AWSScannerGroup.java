@@ -14,7 +14,7 @@ public class AWSScannerGroup extends AWSScanner<AmazonWebServiceClient> {
 	
 	
 	public AWSScannerGroup(AWSScannerBuilder builder) {
-		super(builder,null);
+		super(builder,null,null);
 	}
 	@SuppressWarnings("rawtypes")
 	public List<Class<? extends AWSScanner>> getScannerTypes() {

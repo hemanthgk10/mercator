@@ -28,8 +28,7 @@ import com.google.common.base.Strings;
 public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 
 	public ASGScanner(AWSScannerBuilder builder) {
-		super(builder, AmazonAutoScalingClient.class);
-
+		super(builder, AmazonAutoScalingClient.class,"AwsAsg");
 	}
 
 	@Override
@@ -51,7 +50,11 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 	}
 
 	private void doScan(String... asgNames) {
-		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsAsg").region(getRegion());
+		
+		GraphNodeGarbageCollector gc = newGarbageCollector();
+		if (asgNames==null || asgNames.length==0) {
+			gc.bindScannerContext();
+		}
 
 		forEachAsg(asg -> {
 			try {
@@ -65,18 +68,15 @@ public class ASGScanner extends AWSScanner<AmazonAutoScalingClient> {
 					gc.MERGE_ACTION.call(r);
 					getShadowAttributeRemover().removeTagAttributes("AwsAsg", n, r);
 				});
-
+				incrementEntityCount();
 				mapAsgRelationships(asg, asgArn, getRegion().getName());
 			} catch (RuntimeException e) {
-				gc.markException(e);
+		
 				maybeThrow(e, "problem scanning asg");
 			}
 
 		}, asgNames);
-		if (asgNames == null || asgNames.length == 0) {
-			// only invoke if scanned all
-			gc.invoke();
-		}
+		
 	}
 
 	private void forEachAsg(Consumer<AutoScalingGroup> consumer, String... asgNames) {

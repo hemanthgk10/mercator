@@ -36,7 +36,7 @@ import com.google.common.base.Strings;
 public class LaunchConfigScanner extends AWSScanner<AmazonAutoScalingClient> {
 
 	public LaunchConfigScanner(AWSScannerBuilder builder) {
-		super(builder, AmazonAutoScalingClient.class);
+		super(builder, AmazonAutoScalingClient.class,"AwsLaunchConfig");
 	}
 
 	@Override
@@ -52,8 +52,7 @@ public class LaunchConfigScanner extends AWSScanner<AmazonAutoScalingClient> {
 
 	@Override
 	protected void doScan() {
-		GraphNodeGarbageCollector gc = new GraphNodeGarbageCollector().label("AwsLaunchConfig").account(getAccountId())
-				.neo4j(getNeoRxClient()).region(getRegion());
+		GraphNodeGarbageCollector gc = newGarbageCollector().bindScannerContext();
 
 		forEachLaunchConfig(getRegion(), config -> {
 			try {
@@ -70,12 +69,12 @@ public class LaunchConfigScanner extends AWSScanner<AmazonAutoScalingClient> {
 							gc.MERGE_ACTION.call(r);
 							getShadowAttributeRemover().removeTagAttributes("AwsLaunchConfig", n, r);
 						});
+				incrementEntityCount();
 			} catch (RuntimeException e) {
-				gc.markException(e);
 				maybeThrow(e);
 			}
 		});
-		gc.invoke();
+
 	}
 
 	private void forEachLaunchConfig(Region region, Consumer<LaunchConfiguration> consumer) {

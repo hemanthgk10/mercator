@@ -10,7 +10,7 @@ public abstract class AbstractEC2Scanner extends AWSScanner<AmazonEC2Client> {
 	
 
 	public AbstractEC2Scanner(AWSScannerBuilder builder) {
-		super(builder, AmazonEC2Client.class);
+		super(builder, AmazonEC2Client.class,"");
 		Preconditions.checkNotNull(builder.getProjector());
 	}
 		

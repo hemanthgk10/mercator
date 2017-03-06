@@ -2,12 +2,13 @@ package org.lendingclub.mercator.aws;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
 
 import org.lendingclub.mercator.core.AbstractScanner;
-import org.lendingclub.mercator.core.Projector;
 import org.lendingclub.mercator.core.MercatorException;
-import org.lendingclub.mercator.core.Scanner;
+import org.lendingclub.mercator.core.Projector;
+import org.lendingclub.mercator.core.ScannerContext;
 import org.lendingclub.mercator.core.SchemaManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
@@ -36,6 +39,7 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 	private AmazonWebServiceClient client;
 	private Region region;
 
+	String neo4jLabel = null;
 	private ScannerMetricCollector metricCollector = new ScannerMetricCollector();
 	protected AWSScannerBuilder builder;
 	JsonConverter converter;
@@ -44,14 +48,15 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 
 	ShadowAttributeRemover shadowRemover;
 	public static final String AWS_REGION_ATTRIBUTE = "aws_region";
-	public static final String AWS_ACCOUNT_ATTRIBUTE="aws_account";
-	public static final String AWS_ARN_ATTRIBUTE="aws_arn";
+	public static final String AWS_ACCOUNT_ATTRIBUTE = "aws_account";
+	public static final String AWS_ARN_ATTRIBUTE = "aws_arn";
 
-	public AWSScanner(AWSScannerBuilder builder, Class<? extends AmazonWebServiceClient> clientType) {
+	public AWSScanner(AWSScannerBuilder builder, Class<? extends AmazonWebServiceClient> clientType, String label) {
 		super(builder, Maps.newHashMap());
 		if (builder.getRegion() == null) {
 			builder.withRegion(Region.getRegion(Regions.US_EAST_1));
 		}
+		this.neo4jLabel = label;
 		this.clientType = clientType;
 
 		Preconditions.checkNotNull(builder);
@@ -66,6 +71,9 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 
 	}
 
+	protected void setNeo4jLabel(String label) {
+		this.neo4jLabel = label;
+	}
 	protected ShadowAttributeRemover getShadowAttributeRemover() {
 		return shadowRemover;
 	}
@@ -113,20 +121,41 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 		return projector.getNeoRxClient();
 	}
 
+	class AWSScannerContext extends ScannerContext {
+		
+		@Override
+		protected ToStringHelper toStringHelper() {
+			ToStringHelper tsh = super.toStringHelper();
+			tsh.add("region",getRegion().getName());
+			try {
+				tsh.add("account", getAccountId());
+			}
+			catch (RuntimeException e) {
+				tsh.add("account", "unknown");
+			}
+			return tsh;
+		}
+
+	
+	}
+
 	public final void scan() {
 
-		long t0 = System.currentTimeMillis();
-		try {
-			
-			logger.info("{} started scan", toString());
+		List<String> x = Splitter.on(".").splitToList(getClass().getName());
+		
+		new AWSScannerContext().withName(x.get(x.size()-1)).exec(ctx -> {
 
-			doScan();
-			long t1 = System.currentTimeMillis();
-			logger.info("{} ended scan duration={} ms", this, t1 - t0);
-		} catch (RuntimeException e) {
-			logger.warn("{} aborted scan duration={} ms", this, System.currentTimeMillis() - t0);
-			maybeThrow(e);
-		}
+			try {
+
+				logger.info("{} started scan", toString());
+
+				doScan();
+			} catch (RuntimeException e) {
+				maybeThrow(e);
+			}
+
+		});
+
 	}
 
 	protected abstract void doScan();
@@ -146,7 +175,7 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 	}
 
 	public GraphNodeGarbageCollector newGarbageCollector() {
-		return new GraphNodeGarbageCollector().neo4j(getNeoRxClient()).account(getAccountId());
+		return new GraphNodeGarbageCollector().neo4j(getNeoRxClient()).account(getAccountId()).region(getRegion()).label(getNeo4jLabel());
 	}
 
 	public Optional<String> computeArn(JsonNode n) {
@@ -172,8 +201,8 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 			// getAccountId() could trigger a callout...bad thing to happen from
 			// toString()
 		}
-		return MoreObjects.toStringHelper(this).add(AWS_REGION_ATTRIBUTE, getRegion().getName()).add(AWS_ACCOUNT_ATTRIBUTE, safeAccount)
-				.toString();
+		return MoreObjects.toStringHelper(this).add(AWS_REGION_ATTRIBUTE, getRegion().getName())
+				.add(AWS_ACCOUNT_ATTRIBUTE, safeAccount).toString();
 	}
 
 	protected boolean tokenHasNext(String token) {
@@ -181,6 +210,14 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 
 	}
 	
+	public String getNeo4jLabel() {
+		Preconditions.checkState(neo4jLabel!=null);
+		return neo4jLabel;
+	}
 	
-	
+	protected void incrementEntityCount() {
+		ScannerContext.getScannerContext().ifPresent(sc -> {
+			sc.incrementEntityCount();
+		});
+	}
 }

@@ -17,7 +17,7 @@ import com.google.common.collect.Maps;
 public class SQSScanner extends AWSScanner<AmazonSQSClient> {
 
 	public SQSScanner(AWSScannerBuilder builder) {
-		super(builder, AmazonSQSClient.class);
+		super(builder, AmazonSQSClient.class,"AwsSqsQueue");
 
 	}
 
@@ -81,6 +81,7 @@ public class SQSScanner extends AWSScanner<AmazonSQSClient> {
 
 	private void projectQueue(String url, Map<String, String> attrsOrig) {
 
+		incrementEntityCount();
 		ObjectNode n = convertSQSQueue(attrsOrig, getRegion(), url);
 
 		String cypher = "merge (t:AwsSqsQueue {aws_arn:{aws_arn}}) set t+={props}, t.updateTs=timestamp() return t";

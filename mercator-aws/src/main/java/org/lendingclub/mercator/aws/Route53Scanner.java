@@ -1,8 +1,8 @@
 package org.lendingclub.mercator.aws;
 
-import com.amazonaws.AmazonWebServiceClient;
+import org.lendingclub.mercator.core.ScannerContext;
+
 import com.amazonaws.services.route53.AmazonRoute53Client;
-import com.amazonaws.services.route53.model.GetHostedZoneCountRequest;
 import com.amazonaws.services.route53.model.GetHostedZoneRequest;
 import com.amazonaws.services.route53.model.GetHostedZoneResult;
 import com.amazonaws.services.route53.model.HostedZone;
@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class Route53Scanner extends AWSScanner<AmazonRoute53Client> {
 
 	public Route53Scanner(AWSScannerBuilder builder) {
-		super(builder, AmazonRoute53Client.class);
+		super(builder, AmazonRoute53Client.class,"AwsRoute53HostedZone");
 
 	}
 
@@ -98,6 +98,10 @@ public class Route53Scanner extends AWSScanner<AmazonRoute53Client> {
 		getNeoRxClient().execCypher(
 				"match (r:AwsRoute53RecordSet {aws_name:{aws_name}}), (z:AwsRoute53HostedZone {aws_id : {aws_id}}) merge (z)-[x:CONTAINS]->(r) set x.updateTs={updateTs}",
 				"aws_name", rs.getName(), "aws_id", hostedZoneId, "updateTs", timestamp);
+		
+		ScannerContext.getScannerContext().ifPresent(sc -> {
+			sc.incrementEntityCount();
+		});
 
 	}
 

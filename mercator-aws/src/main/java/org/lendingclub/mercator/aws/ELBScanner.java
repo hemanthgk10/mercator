@@ -39,7 +39,7 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 	private static final int DESCRIBE_TAGS_MAX = 20;
 
 	public ELBScanner(AWSScannerBuilder builder) {
-		super(builder, AmazonElasticLoadBalancingClient.class);
+		super(builder, AmazonElasticLoadBalancingClient.class,"AwsElb");
 
 	}
 
@@ -82,7 +82,7 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 
 	private void projectElb(LoadBalancerDescription elb, GraphNodeGarbageCollector gc) {
 		ObjectNode n = convertAwsObject(elb, getRegion());
-
+		incrementEntityCount();
 		String elbArn = n.path("aws_arn").asText();
 		logger.debug("Scanning elb: {}", elbArn);
 
@@ -103,20 +103,20 @@ public class ELBScanner extends AWSScanner<AmazonElasticLoadBalancingClient> {
 	@Override
 	protected void doScan() {
 
-		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsElb").region(getRegion());
+		GraphNodeGarbageCollector gc = newGarbageCollector().bindScannerContext();
 
 		forEachElb(getRegion(), elb -> {
 			try {
+				incrementEntityCount();
 				projectElb(elb, gc);
 
 			} catch (RuntimeException e) {
-				gc.markException(e);
+	
 				maybeThrow(e,"problem scanning ELB");
 				
 			}
 		});
 
-		gc.invoke();
 
 	}
 

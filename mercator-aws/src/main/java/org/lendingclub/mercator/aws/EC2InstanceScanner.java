@@ -17,10 +17,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Scanner;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import org.lendingclub.mercator.core.Projector;
+import org.lendingclub.mercator.core.ScannerContext;
 
 import com.amazonaws.AmazonWebServiceClient;
 import com.amazonaws.regions.Region;
@@ -63,6 +65,9 @@ public class EC2InstanceScanner extends AbstractEC2Scanner {
 		writeInstance(instance, null);
 	}
 
+	public String getNeo4jLabel() {
+		return "AwsEc2Instance";
+	}
 	private void writeInstance(Instance instance, GraphNodeGarbageCollector gc) {
 		if (instance.getState().getName().equals("terminated")) {
 			// instance is terminated
@@ -137,14 +142,15 @@ public class EC2InstanceScanner extends AbstractEC2Scanner {
 	@Override
 	protected void doScan() {
 		GraphNodeGarbageCollector gc = new GraphNodeGarbageCollector().neo4j(getNeoRxClient()).account(getAccountId())
-				.label("AwsEc2Instance").region(getRegion().getName());
-
+				.label("AwsEc2Instance").region(getRegion().getName()).bindScannerContext();
+		
+	
 		forEachInstance(getRegion(), instance -> {
 
 			try {
 
 				writeInstance(instance, gc);
-
+				ScannerContext.getScannerContext().get().incrementEntityCount();
 			} catch (RuntimeException e) {
 				gc.markException(e);
 				maybeThrow(e);
@@ -152,8 +158,8 @@ public class EC2InstanceScanner extends AbstractEC2Scanner {
 
 		});
 
-		gc.invoke();
-
+	
+	
 	}
 
 	private void forEachInstance(Region region, Consumer<Instance> consumer) {

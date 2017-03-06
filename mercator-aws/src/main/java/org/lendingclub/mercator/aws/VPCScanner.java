@@ -16,6 +16,7 @@ package org.lendingclub.mercator.aws;
 import java.util.Optional;
 
 import org.lendingclub.mercator.core.Projector;
+import org.lendingclub.mercator.core.ScannerContext;
 
 import com.amazonaws.AmazonWebServiceClient;
 import com.amazonaws.regions.Region;
@@ -63,6 +64,7 @@ public class VPCScanner extends AbstractEC2Scanner {
 					getShadowAttributeRemover().removeTagAttributes("AwsVpc", n, r);
 				});
 				neoRx.execCypher(mapToSubnetCypher, "aws_arn",n.path("aws_arn").asText(), "aws_vpcId",n.path("aws_vpcId").asText());	
+				incrementEntityCount();
 			} catch (RuntimeException e) { 
 				maybeThrow(e);
 			}

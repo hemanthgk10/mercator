@@ -3,6 +3,8 @@ package org.lendingclub.mercator.aws;
 import java.util.List;
 import java.util.Optional;
 
+import org.lendingclub.mercator.core.ScannerContext;
+
 import com.amazonaws.services.rds.AmazonRDSClient;
 import com.amazonaws.services.rds.AmazonRDSClientBuilder;
 import com.amazonaws.services.s3.AmazonS3Client;
@@ -15,7 +17,7 @@ import com.google.common.base.Strings;
 public class S3BucketScanner extends AWSScanner<AmazonS3Client> {
 
 	public S3BucketScanner(AWSScannerBuilder builder) {
-		super(builder,AmazonS3Client.class);
+		super(builder,AmazonS3Client.class,"AwsS3Bucket");
 	}
 
 	@Override
@@ -40,11 +42,9 @@ public class S3BucketScanner extends AWSScanner<AmazonS3Client> {
 	
 	@Override
 	public Optional<String> computeArn(JsonNode n) {
-		String name = n.path("name").asText(null);
+		String name = n.get("name").asText();
 		
-		if (Strings.isNullOrEmpty(name)) {
-			return Optional.empty();
-		}
+		
 		return Optional.of("arn:aws:s3:::"+name);
 	}
 
@@ -58,12 +58,13 @@ public class S3BucketScanner extends AWSScanner<AmazonS3Client> {
 		props.put("aws_account", getAccountId());
 		
 
-		String cypher = "merge (b:AwsS3Bucket { name:{name} }) set b+={props}, b.updateTs=timestamp()";
+		String cypher = "merge (b:AwsS3Bucket { aws_arn:{aws_arn} }) set b+={props}, b.updateTs=timestamp()";
 		
-		getNeoRxClient().execCypher(cypher, "name",b.getName(), "props",props).forEach(r->{
+		getNeoRxClient().execCypher(cypher, "aws_arn",props.get("aws_arn"), "props",props).forEach(r->{
 			getShadowAttributeRemover().removeTagAttributes("AwsS3Bucket", props, r);
 		});
-		
+		incrementEntityCount();
+	
 		cypher = "match (a:AwsAccount {aws_account:{account}}), (b:AwsS3Bucket {aws_account:{account}}) MERGE (a)-[r:OWNS]->(b) set r.updateTs=timestamp()";
 		
 		getNeoRxClient().execCypher(cypher, "account",getAccountId());

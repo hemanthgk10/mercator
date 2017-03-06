@@ -28,8 +28,7 @@ import com.google.common.collect.Lists;
 public class KinesisScanner extends AWSScanner<AmazonKinesisClient> {
 
 	public KinesisScanner(AWSScannerBuilder builder) {
-		super(builder,AmazonKinesisClient.class);
-
+		super(builder,AmazonKinesisClient.class,"AwsKinesisStream");
 	}
 
 	@Override
@@ -76,7 +75,7 @@ public class KinesisScanner extends AWSScanner<AmazonKinesisClient> {
 		n.put("aws_retentionPeriodHours",description.getRetentionPeriodHours());
 		n.put("aws_shardCount", description.getShards().size());
 		
-		
+		incrementEntityCount();
 		String cypher = "merge (k:AwsKinesisStream {aws_arn:{aws_arn}}) set k+={props}, k.updateTs=timestamp() return k";
 
 		getNeoRxClient().execCypher(cypher, "aws_arn", n.path("aws_arn").asText(), "props", n);

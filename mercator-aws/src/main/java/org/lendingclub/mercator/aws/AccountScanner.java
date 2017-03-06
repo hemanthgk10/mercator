@@ -31,6 +31,7 @@ public class AccountScanner extends AbstractEC2Scanner {
 
 	public AccountScanner(AWSScannerBuilder builder) {
 		super(builder);
+		setNeo4jLabel("AwsAccount");
 		Preconditions.checkNotNull(builder.getProjector());
 	}
 

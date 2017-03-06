@@ -1,3 +1,7 @@
+## 1.2.0
+* added ScannerContext
+* fix tag aws removal for tags with special characters
+
 ## 1.1.1
 * tags were not scanned on individual ELB scan requests
 

@@ -37,7 +37,7 @@ public class AMIScanner extends AbstractEC2Scanner {
 
 	public AMIScanner(AWSScannerBuilder builder) {
 		super(builder);
-		// TODO Auto-generated constructor stub
+		setNeo4jLabel("AwsAmi");
 	}
 
 	@Override
@@ -58,7 +58,7 @@ public class AMIScanner extends AbstractEC2Scanner {
 		
 		NeoRxClient neoRx = getNeoRxClient();
 		Preconditions.checkNotNull(neoRx);
-		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsAmi").region(getRegion());
+		GraphNodeGarbageCollector gc = newGarbageCollector().bindScannerContext();
 		DescribeImagesRequest req = new DescribeImagesRequest().withOwners("self");
 		DescribeImagesResult result = c.describeImages(req);
 		
@@ -72,13 +72,12 @@ public class AMIScanner extends AbstractEC2Scanner {
 					gc.MERGE_ACTION.call(r);
 					getShadowAttributeRemover().removeTagAttributes("AwsAmi", n, r);
 				});
-				
+				incrementEntityCount();
 			} catch (RuntimeException e) { 
-				gc.markException(e);
 				maybeThrow(e,"problem scanning AMI "+i.getImageId());
 			}
 		});
-		gc.invoke();
+	
 	}
 
 }

@@ -35,7 +35,7 @@ public class AvailabilityZoneScanner extends AbstractEC2Scanner{
 
 	public AvailabilityZoneScanner(AWSScannerBuilder builder) {
 		super(builder);
-
+		setNeo4jLabel("AwsAvailabilityZone");
 	}
 
 	@Override
@@ -47,7 +47,7 @@ public class AvailabilityZoneScanner extends AbstractEC2Scanner{
 	protected void doScan() {
 		
 
-		GraphNodeGarbageCollector gc = newGarbageCollector().region(getRegion()).label("AwsAvailabilityZone");
+		GraphNodeGarbageCollector gc = newGarbageCollector().bindScannerContext();
 		DescribeAvailabilityZonesResult result = getClient().describeAvailabilityZones();
 		result.getAvailabilityZones().forEach(it -> {
 			
@@ -71,11 +71,10 @@ public class AvailabilityZoneScanner extends AbstractEC2Scanner{
 				neoRx.execCypher(mapToRegionCypher, "aws_zoneName",n.path("aws_zoneName").asText(), AWSScanner.AWS_REGION_ATTRIBUTE,n.path(AWSScanner.AWS_REGION_ATTRIBUTE).asText(),AccountScanner. ACCOUNT_ATTRIBUTE,getAccountId());
 
 			} catch (RuntimeException e) { 
-				gc.markException(e);
 				maybeThrow(e,"problem scanning availability zones");
 			}		
 		});		
-		gc.invoke();
+
 	}
 
 }

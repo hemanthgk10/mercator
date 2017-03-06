@@ -15,30 +15,33 @@ import io.macgyver.neorx.rest.NeoRxClient;
 public class ShadowAttributeRemover {
 
 	Logger logger = LoggerFactory.getLogger(ShadowAttributeRemover.class);
-	
+
 	NeoRxClient neo4j;
-	
+
 	public ShadowAttributeRemover(NeoRxClient client) {
 		this.neo4j = client;
 	}
-	
-	
+
 	class SanitizationFilter implements Predicate<String> {
 
 		boolean isValidChar(char c) {
-			return c==':' || Character.isJavaIdentifierPart(c);
-		}
-		@Override
-		public boolean test(String t) {
-			for (char c: t.toCharArray()) {
-				if (!isValidChar(c)) {
+			if (c=='`' || c==';') {
 					return false;
-				}
-			}
-			return true;
-		}
-		
+			}return true;
 	}
+
+	@Override
+	public boolean test(String t) {
+		for (char c : t.toCharArray()) {
+			if (!isValidChar(c)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	}
+
 	public void removeTagAttributes(String label, JsonNode desired, JsonNode cache) {
 		removeAttributes(label, desired, cache, new Predicate<String>() {
 
@@ -46,25 +49,24 @@ public class ShadowAttributeRemover {
 			public boolean test(String t) {
 				return t.startsWith("aws_tag_");
 			}
-			
+
 		});
 	}
-	public void removeAttributes(String label,JsonNode desired, JsonNode cache, Predicate<String> predicate) {
-		List<String> attrs = getAttributesToRemove(desired, cache,predicate);
-		
 
-			if (!attrs.isEmpty()) {
-				List<String> fragments = Lists.newArrayList();
-				attrs.stream().filter(new SanitizationFilter()).forEach(n -> {
-					fragments.add("x.`" + n+"`");
-				});
-				if (!fragments.isEmpty()) {
-					String clause = Joiner.on(", ").join(fragments);
-					String cypher = "match (x:"+label+" {aws_arn:{aws_arn}}) remove " + clause + " return x";
-					neo4j.execCypher(cypher, "aws_arn", desired.get("aws_arn").asText());
-				}
+	public void removeAttributes(String label, JsonNode desired, JsonNode cache, Predicate<String> predicate) {
+		List<String> attrs = getAttributesToRemove(desired, cache, predicate);
+
+		if (!attrs.isEmpty()) {
+			List<String> fragments = Lists.newArrayList();
+			attrs.stream().filter(new SanitizationFilter()).forEach(n -> {
+				fragments.add("x.`" + n + "`");
+			});
+			if (!fragments.isEmpty()) {
+				String clause = Joiner.on(", ").join(fragments);
+				String cypher = "match (x:" + label + " {aws_arn:{aws_arn}}) remove " + clause + " return x";
+				neo4j.execCypher(cypher, "aws_arn", desired.get("aws_arn").asText());
 			}
-
+		}
 
 	}
 

@@ -15,6 +15,8 @@ package org.lendingclub.mercator.aws;
 
 import java.util.Optional;
 
+import org.lendingclub.mercator.core.ScannerContext;
+
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -41,7 +43,7 @@ public class RegionScanner extends AbstractEC2Scanner {
 	@Override
 	protected void doScan() {
 
-		GraphNodeGarbageCollector gc = newGarbageCollector().region(getRegion()).label("AwsRegion");
+		GraphNodeGarbageCollector gc = newGarbageCollector().label("AwsRegion").bindScannerContext();
 
 	
 		DescribeRegionsResult result = getClient().describeRegions();
@@ -63,14 +65,17 @@ public class RegionScanner extends AbstractEC2Scanner {
 										AWSScanner.AWS_REGION_ATTRIBUTE,
 										n.path(AWSScanner.AWS_REGION_ATTRIBUTE).asText(), "props",
 										n).forEach(gc.MERGE_ACTION);
+								ScannerContext.getScannerContext().ifPresent(sc -> {
+									sc.incrementEntityCount();
+								});
 
 							} catch (RuntimeException e) {
-								gc.markException(e);
+						
 								maybeThrow(e,"problem scanning regions");
 							}
 						});
 		
-		gc.invoke();
+	
 		
 	}
 

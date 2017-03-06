@@ -40,6 +40,9 @@ public abstract class AbstractScanner implements Scanner {
 	
 	
 	public void maybeThrow(Exception e, String message) {
+		ScannerContext.getScannerContext().ifPresent(sc -> {
+			sc.markException(e);
+		});
 		if (isFailOnError()) {
 			if (e instanceof RuntimeException) {
 				throw ((RuntimeException) e);

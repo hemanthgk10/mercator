@@ -24,7 +24,7 @@ public class SecurityGroupScanner extends AbstractEC2Scanner {
 
 	public SecurityGroupScanner(AWSScannerBuilder builder) {
 		super(builder);
-
+		setNeo4jLabel("AwsSecurityGroup");
 	}
 
 	@Override
@@ -42,7 +42,7 @@ public class SecurityGroupScanner extends AbstractEC2Scanner {
 		DescribeSecurityGroupsResult result = getClient().describeSecurityGroups();
 
 		long now = System.currentTimeMillis();
-		GraphNodeGarbageCollector gc = newGarbageCollector().region(getRegion()).label("AwsSecurityGroup");
+		GraphNodeGarbageCollector gc = newGarbageCollector().bindScannerContext();
 		result.getSecurityGroups().forEach(sg -> {
 
 			try {
@@ -62,13 +62,12 @@ public class SecurityGroupScanner extends AbstractEC2Scanner {
 					cypher = "match (v:AwsVpc {aws_vpcId: {vpcId}}), (sg:AwsSecurityGroup {aws_arn:{sg_arn}}) merge (sg)-[:RESIDES_IN]->(v)";
 					getNeoRxClient().execCypher(cypher, "vpcId", vpcId, "sg_arn", g.path("aws_arn").asText());
 				}
+				incrementEntityCount();
 			} catch (RuntimeException e) {
-				gc.markException(e);
 				maybeThrow(e, "problem scanning security groups");
 			}
 		});
 
-		gc.invoke();
 
 	}
 
