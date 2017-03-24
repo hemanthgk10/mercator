@@ -5,4 +5,4 @@ include 'mercator-vmware'
 include 'mercator-github'
 include 'mercator-jenkins'
 include 'mercator-demo'
-
+include 'mercator-newrelic'
