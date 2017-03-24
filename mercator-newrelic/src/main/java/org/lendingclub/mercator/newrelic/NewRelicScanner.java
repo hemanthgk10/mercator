@@ -65,7 +65,7 @@ public class NewRelicScanner extends AbstractScanner {
 		getProjector().getNeoRxClient().execCypher(cypher, "json", apps, "accountId", clientSupplier.get().getAccountId());
 		
 		long endTime = System.currentTimeMillis();
-		logger.info("Updating neo4j with the latest information about {} NewRelic Applications took {} secs", apps.get("applications").size(), (endTime - startTime)/ 1000);
+		logger.info("Updating neo4j with the latest information about {} NewRelic Applications took {} secs", apps.get("applications").size(), (endTime - startTime)/ 1000L );
 
 	}
 	
@@ -90,7 +90,7 @@ public class NewRelicScanner extends AbstractScanner {
 
 		getProjector().getNeoRxClient().execCypher(cypher, "json", servers, "accountId", clientSupplier.get().getAccountId());
 		long endTime = System.currentTimeMillis();
-		logger.info("Updating neo4j with the latest information about {} NewRelic Servers took {} secs", servers.get("servers").size(), (endTime - startTime)/ 1000);
+		logger.info("Updating neo4j with the latest information about {} NewRelic Servers took {} secs", servers.get("servers").size(), (endTime - startTime)/ 1000L );
 	}
 	
 	private void scanAlertPolicies() {
@@ -109,7 +109,7 @@ public class NewRelicScanner extends AbstractScanner {
 
 		getProjector().getNeoRxClient().execCypher(cypher, "json", alertPolicies, "accountId", clientSupplier.get().getAccountId());
 		long endTime = System.currentTimeMillis();
-		logger.info("Updating neo4j with the latest information about {} NewRelic alert policies took {} secs", alertPolicies.get("policies").size(), (endTime - startTime)/ 1000);
+		logger.info("Updating neo4j with the latest information about {} NewRelic alert policies took {} secs", alertPolicies.get("policies").size(), (endTime - startTime)/ 1000L );
 	}
 	
 	private void scanAlertConditions() {
@@ -136,19 +136,20 @@ public class NewRelicScanner extends AbstractScanner {
 						+ "ON CREATE SET c.type = condition.type, c.name = condition.name, c.enabled = condition.enabled, "
 						+ "c.metricType = condition.metrics, c.createTs = timestamp(), c.updateTs = timestamp() "
 						+ "ON MATCH SET c.updateTs = timestamp(), c.enabled = condition.enabled, c.type = condition.type "
-						+ "MERGE (c)-[:BELONGS_TO]-(p)";
+						+ "MERGE (c)-[:BELONGS_TO]->(p)";
 						//+ "FOREACH ( sid IN condition.entities | MERGE (s:NewRelicServer { nr_serverId:sid, nr_accountId:{accountId} }) MERGE (c)-[:ATTACHED_TO]->(s))";
 				
 				getProjector().getNeoRxClient().execCypher(conditionsCypher, "json", alertConditions, "accountId", clientSupplier.get().getAccountId());
 				
 				//TODO: create relationship betwen condition and entities ( servers / apm )
+				
 			}
 		});
 		
 		
 
 		long endTime = System.currentTimeMillis();
-		logger.info("Updating neo4j with the latest information about NewRelic alert conditions took {} secs", (endTime - startTime)/ 1000);
+		logger.info("Updating neo4j with the latest information about NewRelic alert conditions took {} secs", (endTime - startTime)/ 1000L );
 	}
 	
 	
