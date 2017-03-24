@@ -1,5 +1,7 @@
 package org.lendingclub.mercator.newrelic;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -48,24 +50,25 @@ public class NewRelicScanner extends AbstractScanner {
 	 * 
 	 */
 	private void scanApms() {
-		long startTime = System.currentTimeMillis();
+		Instant startTime = Instant.now();
 		
 		ObjectNode apps = clientSupplier.get().getApplications();
 		Preconditions.checkNotNull(getProjector().getNeoRxClient(), "neorx client must be set");
 		
 		String cypher = "WITH {json} as data "
 				+ "UNWIND data.applications as app "
-				+ "MERGE (a:NewRelicApplication { nr_appId: app.id, nr_accountId: {accountId}} ) "
+				+ "MERGE (a:NewRelicApplication { nr_appId: toString(app.id), nr_accountId: {accountId}} ) "
 				+ "ON CREATE SET a.appName = app.name, a.lastReportedAt = app.last_reported_at, a.createTs = timestamp(), a.healthStatus = app.health_status, "
 				+ "a.reporting = app.reporting, a.language = app.language, a.updateTs = timestamp() "
 				+ "ON MATCH SET a.lastReportedAt = app.last_reported_at, a.reporting = app.reporting, a.healthStatus = app.health_status, a.updateTs = timestamp() "
-				+ "FOREACH ( sid IN app.links.servers | MERGE (s:NewRelicServer { nr_serverId: sid, nr_accountId:{accountId} }) MERGE (a)-[:HOSTED_ON]->(s))";
+				+ "FOREACH ( sid IN app.links.servers | MERGE (s:NewRelicServer { nr_serverId: toString(sid), nr_accountId:{accountId} }) MERGE (a)-[:HOSTED_ON]->(s))";
 
 
 		getProjector().getNeoRxClient().execCypher(cypher, "json", apps, "accountId", clientSupplier.get().getAccountId());
 		
-		long endTime = System.currentTimeMillis();
-		logger.info("Updating neo4j with the latest information about {} NewRelic Applications took {} secs", apps.get("applications").size(), (endTime - startTime)/ 1000L );
+		Instant endTime = Instant.now();
+		
+		logger.info("Updating neo4j with the latest information about {} NewRelic Applications took {} secs", apps.get("applications").size(), Duration.between(startTime, endTime).getSeconds() );
 
 	}
 	
@@ -75,46 +78,48 @@ public class NewRelicScanner extends AbstractScanner {
 	 */
 	private void scanServers() {
 		
-		long startTime = System.currentTimeMillis();
+		Instant startTime = Instant.now();
 	
 		ObjectNode servers = clientSupplier.get().getServers();
 		Preconditions.checkNotNull(getProjector().getNeoRxClient(), "neorx client must be set");
 		
 		String cypher = "WITH {json} as data "
 				+ "UNWIND data.servers as server "
-				+ "MERGE ( s:NewRelicServer { nr_serverId: server.id, nr_accountId:{accountId} } ) "
+				+ "MERGE ( s:NewRelicServer { nr_serverId: toString(server.id), nr_accountId:{accountId} } ) "
 				+ "ON CREATE SET s.name = server.name, s.host = server.host, s.healthStatus = server.health_status, s.reporting = server.reporting, "
 				+ "s.lastReportedAt = server.last_reported_at, s.createTs = timestamp(), s.updateTs = timestamp() "
 				+ "ON MATCH SET s.name = server.name, s.host = server.host, s.healthStatus = server.health_status, s.reporting = server.reporting, "
 				+ "s.lastReportedAt = server.last_reported_at, s.updateTs = timestamp()";
 
 		getProjector().getNeoRxClient().execCypher(cypher, "json", servers, "accountId", clientSupplier.get().getAccountId());
-		long endTime = System.currentTimeMillis();
-		logger.info("Updating neo4j with the latest information about {} NewRelic Servers took {} secs", servers.get("servers").size(), (endTime - startTime)/ 1000L );
+		Instant endTime = Instant.now();
+		
+		logger.info("Updating neo4j with the latest information about {} NewRelic Servers took {} secs", servers.get("servers").size(), Duration.between(startTime, endTime).getSeconds() );
 	}
 	
 	private void scanAlertPolicies() {
 		
-		long startTime = System.currentTimeMillis();
+		Instant startTime = Instant.now();
 		
 		ObjectNode alertPolicies = clientSupplier.get().getAlertPolicies();
 		Preconditions.checkNotNull(getProjector().getNeoRxClient(), "neorx client must be set");
 
 		String cypher = "WITH {json} as data "
 				+ "UNWIND data.policies as policy "
-				+ "MERGE ( s:NewRelicAlertPolicy { nr_policyId: policy.id, nr_accountId:{accountId} } ) "
+				+ "MERGE ( s:NewRelicAlertPolicy { nr_policyId: toString(policy.id), nr_accountId:{accountId} } ) "
 				+ "ON CREATE SET s.name = policy.name, s.policyCreatedTs = policy.created_at, s.policyUpdatedTs = policy.updated_at, "
 				+ "s.createTs = timestamp(), s.updateTs = timestamp() "
 				+ "ON MATCH SET s.policyUpdatedTs = policy.updated_at, s.updateTs = timestamp() ";
 
 		getProjector().getNeoRxClient().execCypher(cypher, "json", alertPolicies, "accountId", clientSupplier.get().getAccountId());
-		long endTime = System.currentTimeMillis();
-		logger.info("Updating neo4j with the latest information about {} NewRelic alert policies took {} secs", alertPolicies.get("policies").size(), (endTime - startTime)/ 1000L );
+		Instant endTime = Instant.now();
+
+		logger.info("Updating neo4j with the latest information about {} NewRelic alert policies took {} secs", alertPolicies.get("policies").size(), Duration.between(startTime, endTime).getSeconds() );
 	}
 	
 	private void scanAlertConditions() {
 		
-		long startTime = System.currentTimeMillis();
+		Instant startTime = Instant.now();
 		
 		String cypher = "MATCH ( p: NewRelicAlertPolicy { nr_accountId:{accountId} }) return p;";
 		List<JsonNode> alertPolicies = getProjector().getNeoRxClient().execCypherAsList(cypher, "accountId", clientSupplier.get().getAccountId());
@@ -128,28 +133,27 @@ public class NewRelicScanner extends AbstractScanner {
 				ObjectNode alertConditions = clientSupplier.get().getAlertConditionForPolicy(policyId);
 				
 				// create relationship between policy and conditions
-				
+				// create relationship betwen condition and entities ( servers / apm )				
+
 				String conditionsCypher = "WITH {json} as data "
 						+ "UNWIND data.conditions as condition "
-						+ "MATCH (p: NewRelicAlertPolicy {nr_policyId: "+ policyId +", nr_accountId:{accountId}}) "
-						+ "MERGE ( c:NewRelicAlertCondition { nr_conditionId: condition.id, nr_accountId: {accountId} }) "
+						+ "MATCH (p: NewRelicAlertPolicy {nr_policyId: {policyId}, nr_accountId:{accountId}}) "
+						+ "MERGE ( c:NewRelicAlertCondition { nr_conditionId: toString(condition.id), nr_accountId: {accountId} }) "
 						+ "ON CREATE SET c.type = condition.type, c.name = condition.name, c.enabled = condition.enabled, "
 						+ "c.metricType = condition.metrics, c.createTs = timestamp(), c.updateTs = timestamp() "
 						+ "ON MATCH SET c.updateTs = timestamp(), c.enabled = condition.enabled, c.type = condition.type "
-						+ "MERGE (c)-[:BELONGS_TO]->(p)";
-						//+ "FOREACH ( sid IN condition.entities | MERGE (s:NewRelicServer { nr_serverId:sid, nr_accountId:{accountId} }) MERGE (c)-[:ATTACHED_TO]->(s))";
+						+ "MERGE (c)-[:BELONGS_TO]->(p)"
+						+ "FOREACH ( sid IN condition.entities | MERGE (s:NewRelicServer { nr_serverId:sid, nr_accountId:{accountId} }) MERGE (s)-[:ATTACHED_TO]->(c))";
 				
-				getProjector().getNeoRxClient().execCypher(conditionsCypher, "json", alertConditions, "accountId", clientSupplier.get().getAccountId());
-				
-				//TODO: create relationship betwen condition and entities ( servers / apm )
+				getProjector().getNeoRxClient().execCypher(conditionsCypher, "json", alertConditions, "policyId", policyId, "accountId", clientSupplier.get().getAccountId());
 				
 			}
 		});
 		
 		
 
-		long endTime = System.currentTimeMillis();
-		logger.info("Updating neo4j with the latest information about NewRelic alert conditions took {} secs", (endTime - startTime)/ 1000L );
+		Instant endTime = Instant.now();
+		logger.info("Updating neo4j with the latest information about NewRelic alert conditions took {} secs", Duration.between(startTime, endTime).getSeconds() );
 	}
 	
 	

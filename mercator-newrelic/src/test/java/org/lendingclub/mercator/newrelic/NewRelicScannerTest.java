@@ -9,8 +9,8 @@ public class NewRelicScannerTest {
 	@Test
 	public void test() {
 		
-		String accountId = "2345";
-		String token = "asdfasdfx";
+		String accountId = "290";
+		String token = "1234";
 		
 		NewRelicScanner scanner = new BasicProjector().createBuilder(NewRelicScannerBuilder.class).withAccountId(accountId).withToken(token).build();
 		scanner.scan();	
