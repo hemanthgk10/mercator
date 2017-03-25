@@ -5,9 +5,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-
-import io.macgyver.neorx.rest.NeoRxClient;
 
 public abstract class AbstractScanner implements Scanner {
 
@@ -19,6 +18,8 @@ public abstract class AbstractScanner implements Scanner {
 	public AbstractScanner(ScannerBuilder<? extends Scanner> builder, Map<String, String> props) {
 		this.builder = builder;
 		config = Maps.newHashMap();
+		Preconditions.checkNotNull(builder,"builder cannot be null");
+		Preconditions.checkNotNull(builder.getProjector(),"builder.getProjector() cannot be null");
 		config.putAll(builder.getProjector().getProperties());
 		if (props != null) {
 			config.putAll(props);
