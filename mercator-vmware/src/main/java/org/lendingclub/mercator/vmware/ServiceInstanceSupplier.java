@@ -1,4 +1,6 @@
 /**
+ * Copyright 2017 Lending Club, Inc.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.lendingclub.mercator.vmware;
 
 import java.io.IOException;
@@ -23,9 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.PostConstruct;
-
-import org.lendingclub.mercator.core.Projector;
+import org.lendingclub.mercator.core.MercatorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,34 +43,34 @@ public class ServiceInstanceSupplier implements Supplier<ServiceInstance> {
 
 	// Projector projector;
 
-	Logger logger = LoggerFactory.getLogger(ServiceInstanceSupplier.class);
+	static Logger logger = LoggerFactory.getLogger(ServiceInstanceSupplier.class);
 	CglibProxyFactory cglibProxyFactory = new CglibProxyFactory();
 
-	static ScheduledExecutorService sharedExecutor = Executors
-			.newScheduledThreadPool(1);
+	static ScheduledExecutorService sharedExecutor = Executors.newScheduledThreadPool(1);
 
-	List<WeakReference<RefreshingServiceInstance>> instances = Lists
-			.newCopyOnWriteArrayList();
+	List<WeakReference<RefreshingServiceInstance>> instances = Lists.newCopyOnWriteArrayList();
 
 	Map<String, String> config;
 
+	boolean refreshScheduled = false;
+
 	public ServiceInstanceSupplier(Map<String, String> config) {
 		this.config = config;
-
+		scheduleRefresh();
 	}
 
-	@PostConstruct
-	public void scheduleRefresh() {
-		logger.info("scheduling VSphere ServiceInstance session token refresh");
-		sharedExecutor.scheduleWithFixedDelay(new RefreshTask(), 1, 5,
-				TimeUnit.MINUTES);
+	private synchronized void scheduleRefresh() {
+		if (!refreshScheduled) {
+			logger.info("scheduling VSphere ServiceInstance session token refresh");
+			sharedExecutor.scheduleWithFixedDelay(new RefreshTask(), 1, 5, TimeUnit.MINUTES);
+			refreshScheduled = true;
+		}
 	}
 
 	public boolean isRefreshRequired(RefreshingServiceInstance si) {
 		try {
 			si.currentTime();
-			Calendar cal = si.getSessionManager().getCurrentSession()
-					.getLoginTime();
+			Calendar cal = si.getSessionManager().getCurrentSession().getLoginTime();
 			long loginTime = cal.getTimeInMillis();
 			long age = System.currentTimeMillis() - loginTime;
 
@@ -90,8 +91,7 @@ public class ServiceInstanceSupplier implements Supplier<ServiceInstance> {
 		@Override
 		public void run() {
 			try {
-				List<WeakReference<RefreshingServiceInstance>> deleteList = Lists
-						.newArrayList();
+				List<WeakReference<RefreshingServiceInstance>> deleteList = Lists.newArrayList();
 
 				for (WeakReference<RefreshingServiceInstance> ref : instances) {
 					RefreshingServiceInstance si = ref.get();
@@ -120,28 +120,24 @@ public class ServiceInstanceSupplier implements Supplier<ServiceInstance> {
 	public ServiceInstance get() {
 		try {
 
-			boolean ignoreCerts = !Boolean.parseBoolean(config.getOrDefault("vmware.validateCerts", "false"));
-			String url = config.get("vmware.url");
-			String username = config.get("vmware.username");
+			boolean ignoreCerts = !Boolean.parseBoolean(config.getOrDefault(VMWareScannerBuilder.VALIDATE_CERTS_PROPERTY, "false"));
+			String url = config.get(VMWareScannerBuilder.URL_PROPERTY);
+			String username = config.get(VMWareScannerBuilder.USERNAME_PROPERTY);
 			logger.info("connecting to {} as {}", url, username);
-			RefreshingServiceInstance si = new RefreshingServiceInstance(
-					new URL(url),
-					username, config.get("vmware.password"),
-					ignoreCerts);
+			RefreshingServiceInstance si = new RefreshingServiceInstance(new URL(url), username,
+					config.get(VMWareScannerBuilder.PASSWORD_PROPERTY), ignoreCerts);
 
-			final RefreshingServiceInstance cglibProxy = HotSwapping
-					.proxy(RefreshingServiceInstance.class).with(si)
+			final RefreshingServiceInstance cglibProxy = HotSwapping.proxy(RefreshingServiceInstance.class).with(si)
 					.mode(DelegationMode.DIRECT).build(cglibProxyFactory);
 			addAutoRefresh(cglibProxy);
 			return cglibProxy;
 		} catch (IOException e) {
-			throw new RuntimeException(e);
+			throw new MercatorException(e);
 		}
 
 	}
 
 	protected void addAutoRefresh(RefreshingServiceInstance serviceInstance) {
-		instances.add(new WeakReference<RefreshingServiceInstance>(
-				serviceInstance));
+		instances.add(new WeakReference<RefreshingServiceInstance>(serviceInstance));
 	}
 }

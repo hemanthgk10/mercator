@@ -1,4 +1,6 @@
 /**
+ * Copyright 2017 Lending Club, Inc.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,22 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.lendingclub.mercator.vmware;
 
-import io.macgyver.neorx.rest.NeoRxClient;
+package org.lendingclub.mercator.vmware;
 
 import java.rmi.RemoteException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.lendingclub.mercator.core.AbstractScanner;
-import org.lendingclub.mercator.core.Projector;
-import org.lendingclub.mercator.core.Scanner;
+import org.lendingclub.mercator.core.SchemaManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -46,6 +44,8 @@ import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.ServerConnection;
 import com.vmware.vim25.mo.ServiceInstance;
 import com.vmware.vim25.mo.VirtualMachine;
+
+import io.macgyver.neorx.rest.NeoRxClient;
 
 public class VMWareScanner extends AbstractScanner {
 
@@ -85,10 +85,12 @@ public class VMWareScanner extends AbstractScanner {
 	private void setVal(ObjectNode n, String prop, String val) {
 		n.put(prop, val);
 	}
+	private void setVal(ObjectNode n, String prop, boolean val) {
+		n.put(prop, val);
+	}
 
 
-
-	public void updateComputeHost(ObjectNode n) {
+	protected void updateComputeHost(ObjectNode n) {
 	
 	
 		String cypher ="merge (c:ComputeHost:VMWareHost {id:{id}}) on match set c+={p} ,c.updateTs=timestamp() ON CREATE SET c+={p}, c.updateTs=timestamp() return c";
@@ -99,7 +101,7 @@ public class VMWareScanner extends AbstractScanner {
 
 	}
 
-	public void updateCluster(ObjectNode cluster) {
+	protected void updateCluster(ObjectNode cluster) {
 
 		String cypher = "merge (c:VMWareCluster {id:{id}}) on match set c+={props} "
 				+ ",c.updateTs=timestamp() ON CREATE SET "
@@ -107,7 +109,7 @@ public class VMWareScanner extends AbstractScanner {
 		getProjector().getNeoRxClient().execCypher(cypher, "id",cluster.path("id").asText(),"props",cluster).toBlocking().first();
 	}
 
-	public void updateComputeInstance(ObjectNode n) {
+	protected void updateComputeInstance(ObjectNode n) {
 
 	
 		String cypher = "merge (c:ComputeInstance:VMWareGuest {id:{id}}) on match set "
@@ -169,9 +171,16 @@ public class VMWareScanner extends AbstractScanner {
 			setVal(n, "vmw_guestId", g.getGuestId());
 			setVal(n, "vmw_guestHostName", g.getHostName());
 			setVal(n, "vmw_guestAlternateName", cfg.getAlternateGuestName());
+			setVal(n, "vmw_guestToolsRunningStatus",""+g.getToolsRunningStatus());
+			setVal(n, "vmw_guestState",""+g.getGuestState());
+			
 			setVal(n, "vmw_locationId", cfg.getLocationId());
 			setVal(n, "vmw_memoryMB", "" + cfg.getHardware().getMemoryMB());
 			setVal(n, "vmw_numCPU", "" + cfg.getHardware().getNumCPU());
+			setVal(n, "vmw_isTemplate",vm.getConfig().isTemplate());
+			setVal(n, "vmw_powerState",vm.getSummary().getRuntime().getPowerState().toString());
+			
+		
 
 		} catch (Exception e) {
 			logger.warn("", e);
@@ -179,7 +188,7 @@ public class VMWareScanner extends AbstractScanner {
 		return n;
 	}
 
-	public void scan(VirtualMachine vm) {
+	protected void scan(VirtualMachine vm) {
 		logger.debug("scanning vm: {}", vm.getName());
 		ObjectNode n = toComputeNodeData(vm);
 		updateComputeInstance(n);
@@ -208,7 +217,7 @@ public class VMWareScanner extends AbstractScanner {
 		return n;
 	}
 
-	public void updateClusterHostRelationship(ClusterComputeResource cluster, HostSystem host) {
+	protected void updateClusterHostRelationship(ClusterComputeResource cluster, HostSystem host) {
 		logger.debug("updating relationship between cluster={} and host={}",
 				cluster.getName(), host.getName());
 		String cypher = "match (h {id:{hostId} }), (c:VMWareCluster {id: {clusterId}}) MERGE (c)-[r:CONTAINS]->(h) ON CREATE SET r.updateTs=timestamp(),r.createTs=timestamp() ON MATCH SET r.updateTs=timestamp() return r";
@@ -216,7 +225,7 @@ public class VMWareScanner extends AbstractScanner {
 				getUniqueId(cluster));
 	}
 
-	public void updateHostVmRelationship(HostSystem h, VirtualMachine vm) {
+	protected void updateHostVmRelationship(HostSystem h, VirtualMachine vm) {
 
 		logger.debug("updating relationship between host={} and vm={}",
 				h.getName(), vm.getName());
@@ -227,7 +236,7 @@ public class VMWareScanner extends AbstractScanner {
 
 	}
 
-	public void updateDatacenterClusterRelationship(Datacenter dc, ClusterComputeResource cluster) {
+	protected void updateDatacenterClusterRelationship(Datacenter dc, ClusterComputeResource cluster) {
 
 		logger.debug("updating relationship between dc={} and cluster={}",
 				dc.getName(), cluster.getName());
@@ -251,7 +260,7 @@ public class VMWareScanner extends AbstractScanner {
 		return n;
 	}
 
-	public void scanDatacenter(Datacenter dc) {
+	protected void scanDatacenter(Datacenter dc) {
 		try {
 			logger.info("scanning DataCenter: " + dc.getName());
 			ObjectNode dataCenterNode = toObjectNode(dc);
@@ -278,7 +287,7 @@ public class VMWareScanner extends AbstractScanner {
 		});
 	}
 
-	public void scanCluster(ClusterComputeResource cluster) {
+	protected void scanCluster(ClusterComputeResource cluster) {
 		logger.info("scanning cluster={}",cluster.getName());
 		ObjectNode n = toObjectNode(cluster);
 		updateCluster(n);
@@ -290,7 +299,7 @@ public class VMWareScanner extends AbstractScanner {
 
 	}
 
-	public void scanHost(HostSystem host, boolean scanGuests) {
+	protected void scanHost(HostSystem host, boolean scanGuests) {
 		try {
 			logger.info("scanning esxi host={}",
 					host.getName());
@@ -403,4 +412,27 @@ public class VMWareScanner extends AbstractScanner {
 	public VMWareQueryTemplate newQueryTemplate() {
 		return new VMWareQueryTemplate(getServiceInstance());
 	}
+
+	@Override
+	public SchemaManager getSchemaManager() {
+		return new VMWareSchemaManager(getProjector().getNeoRxClient());
+	}
+	
+	class VMWareSchemaManager extends SchemaManager {
+
+		public VMWareSchemaManager(NeoRxClient client) {
+			super(client);
+			
+		}
+		
+		public void applyConstraints() {
+			applyConstraint("CREATE  CONSTRAINT ON (a:VMWareHost) ASSERT a.id IS UNIQUE ");
+			applyConstraint("CREATE  CONSTRAINT ON (a:VMWareDatacenter) ASSERT a.id IS UNIQUE ");
+			applyConstraint("CREATE  CONSTRAINT ON (a:VMWareCluster) ASSERT a.id IS UNIQUE ");
+			applyConstraint("CREATE  CONSTRAINT ON (a:VMWareVCenter) ASSERT a.id IS UNIQUE ");
+		
+		}
+		
+	}
+	
 }
