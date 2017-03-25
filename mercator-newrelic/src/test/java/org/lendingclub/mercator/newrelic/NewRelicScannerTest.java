@@ -15,6 +15,7 @@
  */
 package org.lendingclub.mercator.newrelic;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.lendingclub.mercator.core.BasicProjector;
 
@@ -22,6 +23,7 @@ public class NewRelicScannerTest {
 	
 	
 	@Test
+	@Ignore
 	public void test() {
 		
 		String accountId = "290";
