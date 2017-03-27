@@ -1,3 +1,9 @@
+## 1.3.0 - 2017-03-27
+* Added Docker support
+* Added UCS Support
+* Added New Relic Support
+* Minor Refactoring
+
 ## 1.2.0
 * added ScannerContext
 * fix tag aws removal for tags with special characters
