@@ -13,14 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.lendingclub.mercator.core;
+package org.macgyver.mercator.ucs;
 
-import io.macgyver.neorx.rest.NeoRxClient;
+import org.jdom2.Element;
 
-public interface Scanner {
+public class UCSRemoteException extends UCSException {
 
-	public void scan();
-	public Projector getProjector();
-	public NeoRxClient getNeoRxClient();
-	public SchemaManager getSchemaManager();
+	String code;
+	String description;
+	
+	public UCSRemoteException(String code, String description) {
+		super("code="+code+" description="+description);
+		this.code = code;
+		this.description = description;
+	}
+	
+	
+	public static UCSRemoteException fromResponse(Element element) {
+		String code = element.getAttributeValue("errorCode");
+		String desc = element.getAttributeValue("errorDescr");
+		UCSRemoteException e = new UCSRemoteException(code, desc);
+		return e;
+	}
 }

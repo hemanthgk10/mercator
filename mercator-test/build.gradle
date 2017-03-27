@@ -20,6 +20,7 @@ repositories {
 // In this section you declare the dependencies for your production and test code
 dependencies {
     compile project(':mercator-core')
+	compile "com.squareup.okhttp3:mockwebserver:${OKHTTP_VERSION}"
     compile "org.slf4j:slf4j-api:${SLF4J_VERSION}"
     compile "com.fasterxml.jackson.core:jackson-databind:${JACKSON_VERSION}"
     compile "org.assertj:assertj-core:${ASSERTJ_VERSION}"

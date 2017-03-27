@@ -23,18 +23,20 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
+import io.macgyver.neorx.rest.NeoRxClient;
+
 public abstract class AbstractScanner implements Scanner {
 
 	Logger logger = LoggerFactory.getLogger(getClass());
-	
+
 	ScannerBuilder<? extends Scanner> builder;
 	Map<String, String> config;
 
 	public AbstractScanner(ScannerBuilder<? extends Scanner> builder, Map<String, String> props) {
 		this.builder = builder;
 		config = Maps.newHashMap();
-		Preconditions.checkNotNull(builder,"builder cannot be null");
-		Preconditions.checkNotNull(builder.getProjector(),"builder.getProjector() cannot be null");
+		Preconditions.checkNotNull(builder, "builder cannot be null");
+		Preconditions.checkNotNull(builder.getProjector(), "builder.getProjector() cannot be null");
 		config.putAll(builder.getProjector().getProperties());
 		if (props != null) {
 			config.putAll(props);
@@ -50,11 +52,14 @@ public abstract class AbstractScanner implements Scanner {
 		return builder.getProjector();
 	}
 
+	public NeoRxClient getNeoRxClient() {
+		return getProjector().getNeoRxClient();
+	}
+
 	public boolean isFailOnError() {
 		return builder.isFailOnError();
 	}
-	
-	
+
 	public void maybeThrow(Exception e, String message) {
 		ScannerContext.getScannerContext().ifPresent(sc -> {
 			sc.markException(e);
@@ -62,23 +67,21 @@ public abstract class AbstractScanner implements Scanner {
 		if (isFailOnError()) {
 			if (e instanceof RuntimeException) {
 				throw ((RuntimeException) e);
-			}
-			else {
+			} else {
 				throw new MercatorException(e);
 			}
-		}
-		else {
-			logger.warn(message,e);
+		} else {
+			logger.warn(message, e);
 		}
 	}
-	
+
 	public void maybeThrow(Exception e) {
-		maybeThrow(e,"scanning problem");
-		
+		maybeThrow(e, "scanning problem");
+
 	}
-	
+
 	public SchemaManager getSchemaManager() {
 		return new SchemaManager(getProjector().getNeoRxClient());
 	}
-	
+
 }
