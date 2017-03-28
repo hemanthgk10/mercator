@@ -192,3 +192,38 @@ JenkinsScanner scanner = projector
 
 scanner.scan();
 ----
+
+== Docker
+
+Mercator can talk to a Docker daemon to ingest Images and Containers.
+
+[[app-listing]]
+[source,java]
+----
+projector.createBuilder(DockerScannerBuilder.class).build();
+----
+
+Note: The docker support does not yet support talking to a remote cluster.
+
+== Cisco UCS
+
+Mercator will scan UCS Manager to build relationships between:
+
+* Blade Chassis
+* Blades
+* Rack Servers
+* Server Service Profiles
+* Fabric Interconnects
+* Fabric Extenders
+
+[[app-listing]]
+[source,java]
+----
+projector.createBuilder(UCSScannerBuilder.class)
+	.withUrl("https://usermanager.example.com/nuova")
+	.withUsername("myusername")
+	.withPassword("mypassword")
+	.withCertValidationEnabled(true)
+	.build()
+	.scan();
+----
