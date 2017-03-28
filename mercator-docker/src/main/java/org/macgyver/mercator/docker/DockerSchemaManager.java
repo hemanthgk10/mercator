@@ -28,9 +28,10 @@ public class DockerSchemaManager extends SchemaManager {
 
 	@Override
 	public void applyConstraints() {
-		applyConstraint("CREATE CONSTRAINT ON (a:DockerImage) assert a.id IS UNIQUE ");
+		applyConstraint("CREATE CONSTRAINT ON (a:DockerImage) assert a.mercatorId IS UNIQUE ");
 		
-		applyConstraint("CREATE CONSTRAINT ON (a:DockerContainer) assert a.id IS UNIQUE ");
+		applyConstraint("CREATE CONSTRAINT ON (a:DockerContainer) assert a.mercatorId IS UNIQUE ");
+		applyConstraint("CREATE CONSTRAINT ON (a:DockerManager) assert a.mercatorId IS UNIQUE ");
 	}
 
 }

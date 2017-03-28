@@ -15,13 +15,13 @@
  */
 package org.macgyver.mercator.docker;
 
-import java.util.concurrent.Callable;
+import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import org.lendingclub.mercator.core.ScannerBuilder;
 
 import com.github.dockerjava.core.DefaultDockerClientConfig.Builder;
+import com.google.common.collect.Lists;
 
 
 public class DockerScannerBuilder extends ScannerBuilder<DockerScanner> {
@@ -31,14 +31,12 @@ public class DockerScannerBuilder extends ScannerBuilder<DockerScanner> {
 		return new DockerScanner(this,getProjector().getProperties());
 	}
 
-	Consumer<Builder> configurator;
-	
+	List<Consumer<Builder>> configList = Lists.newArrayList();
+
 	public DockerScannerBuilder withConfig(Consumer<Builder> cfg) {
-		this.configurator = cfg;
+		this.configList.add(cfg);
 		return this;
 	}
 	
 
-	
-	
 }

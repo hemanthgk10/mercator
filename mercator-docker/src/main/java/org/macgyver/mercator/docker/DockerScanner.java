@@ -21,6 +21,7 @@ import org.lendingclub.mercator.core.AbstractScanner;
 import org.lendingclub.mercator.core.Scanner;
 import org.lendingclub.mercator.core.ScannerBuilder;
 import org.lendingclub.mercator.core.ScannerContext;
+import org.lendingclub.mercator.core.SchemaManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +53,7 @@ public class DockerScanner extends AbstractScanner {
 	}
 	Supplier<DockerClient> supplier;
 
+	Supplier<String> dockerIdSupplier = Suppliers.memoize(new DockerManagerIdSupplier());
 	public DockerScanner(ScannerBuilder<? extends Scanner> builder, Map<String, String> props) {
 		super(builder, props);
 
@@ -68,15 +70,17 @@ public class DockerScanner extends AbstractScanner {
 			
 			DefaultDockerClientConfig cc  =		builder.build();
 
-			if (dockerScannerBuilder.configurator!=null) {
-				dockerScannerBuilder.configurator.accept(builder);
-			}
+			dockerScannerBuilder.configList.forEach(c->{
+				c.accept(builder);
+			});
+			
 			
 			DockerCmdExecFactory dockerCmdExecFactory = new JerseyDockerCmdExecFactory().withReadTimeout(1000)
 					.withConnectTimeout(1000).withMaxTotalConnections(100).withMaxPerRouteConnections(10);
 
 			DockerClient dockerClient = DockerClientBuilder.getInstance(cc)
 					.withDockerCmdExecFactory(dockerCmdExecFactory).build();
+			
 			return dockerClient;
 		}
 
@@ -89,15 +93,17 @@ public class DockerScanner extends AbstractScanner {
 	protected void projectContainer(Container c) {
 		JsonNode n = mapper.valueToTree(c);
 
-		String cypher = "merge (c:DockerContainer {id:{id}}) set c+={props},c.updateTs=timestamp() return c";
+		String cypher = "merge (c:DockerContainer {mercatorId:{id}}) set c+={props},c.updateTs=timestamp() return c";
 
 		getProjector().getNeoRxClient().execCypher(cypher, "id", c.getId(), "props", n);
 
-		cypher = "merge (x:DockerImage {id:{imageId}}) set x.updateTs=timestamp() return x";
+		getNeoRxClient().execCypher("match (m:DockerManager {mercatorId:{managerId}}), (c:DockerContainer {mercatorId:{containerId}}) MERGE (m)-[r:MANAGES]->(c) set r.updateTs=timestamp()","managerId",getDockerManagerId(),"containerId",c.getId());
+		
+		cypher = "merge (x:DockerImage {mercatorId:{imageId}}) set x.updateTs=timestamp() return x";
 
 		getProjector().getNeoRxClient().execCypher(cypher, "imageId", c.getImageId(), "name", c.getImage());
 
-		cypher = "match (di:DockerImage {id:{imageId}}), (dc:DockerContainer {id:{id}}) merge (dc)-[r:USES]->(di) set r.updateTs=timestamp()";
+		cypher = "match (di:DockerImage {mercatorId:{imageId}}), (dc:DockerContainer {mercatorId:{id}}) merge (dc)-[r:USES]->(di) set r.updateTs=timestamp()";
 
 		getProjector().getNeoRxClient().execCypher(cypher, "imageId", c.getImageId(), "id", c.getId());
 
@@ -112,7 +118,7 @@ public class DockerScanner extends AbstractScanner {
 	private void projectContainerDetail(Container c) {
 		InspectContainerResponse icr = getDockerClient().inspectContainerCmd(c.getId()).exec();
 		
-		String cypher = "merge (c:DockerContainer {id:{id}}) set c+={props}";
+		String cypher = "merge (c:DockerContainer {mercatorId:{id}}) set c+={props}";
 		getProjector().getNeoRxClient().execCypher(cypher, "id",c.getId(),"props",mapper.valueToTree(icr));
 		
 	}
@@ -137,11 +143,17 @@ public class DockerScanner extends AbstractScanner {
 	
 
 	
+	protected void scanManager() {
+		String id = getDockerManagerId();
+		getNeoRxClient().execCypher("merge (x:DockerManager {mercatorId:{id}}) set x.updateTs=timestamp()","id",id);
+	}
+	
 	public void scanInfo() {
 		Info info = getDockerClient().infoCmd().exec();
 
 		ObjectNode n = (ObjectNode) mapper.valueToTree(info);
 
+	
 		
 	}
 
@@ -149,21 +161,42 @@ public class DockerScanner extends AbstractScanner {
 		getDockerClient().listImagesCmd().exec().forEach(img -> {
 			
 		
-			getProjector().getNeoRxClient().execCypher("merge (x:DockerImage {id:{id}}) set x+={props}", "id",
+			// Note that images don't really belong to a cluster.  They are unique across time and space by SHA256 and may be present
+			// anywhere.
+			getProjector().getNeoRxClient().execCypher("merge (x:DockerImage {mercatorId:{id}}) set x+={props}", "id",
 					img.getId(), "props", mapper.valueToTree(img));
 		});
 	}
 
 
 	public void scan() {
+		scanManager();
 		scanInfo();
 		scanImages();
 		scanContainers();
 
 	}
 
-	public void applyConstraints() {
-		DockerSchemaManager m = new DockerSchemaManager(getProjector().getNeoRxClient());
-		m.applyConstraints();
+	@Override
+	public SchemaManager getSchemaManager() {
+		return new DockerSchemaManager(getProjector().getNeoRxClient());
 	}
+
+	/**
+	 * This should be an identifier that is unique over time and space.  If we are talking to a local docker daemon, it should be the unique id
+	 * of that daemon.  If we are talking to a swarm cluster, it should be unique identifier for the cluster.  THis might need some adjustment.  We will see.
+	 * @return
+	 */
+	public String getDockerManagerId() {
+			return dockerIdSupplier.get();		
+	}
+	class DockerManagerIdSupplier implements Supplier<String> {
+
+		@Override
+		public String get() {
+			return getDockerClient().infoCmd().exec().getId();
+		}
+		
+	}
+	
 }
