@@ -1,3 +1,7 @@
+## 1.3.1 - 2017-03-28
+* Changed unique identifier for docker to mercatorId
+* Added DockerManager label
+
 ## 1.3.0 - 2017-03-27
 * Added Docker support
 * Added UCS Support
