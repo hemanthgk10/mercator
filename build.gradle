@@ -40,10 +40,6 @@ subprojects {
         mavenCentral()
         jcenter()
         
-        // Temporary until bintray approves neorx in jcenter
-        maven {
-          url "https://dl.bintray.com/lendingclub/OSS/"
-        }
     }
     
     dependencies {
