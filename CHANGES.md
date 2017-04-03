@@ -1,3 +1,7 @@
+
+## 1.4.2 - 2017-04-02
+* use NeoRx 2.0.1 to fix JsonNode handling of parameters
+
 ## 1.4.1 - 2017-04-02
 * Build fix to work around NeoRx bintray approval
 
