@@ -1,4 +1,7 @@
 
+## 1.4.3 - 2017-04-03
+* use NeoRx 2.0.2 to address complex return types
+
 ## 1.4.2 - 2017-04-02
 * use NeoRx 2.0.1 to fix JsonNode handling of parameters
 
