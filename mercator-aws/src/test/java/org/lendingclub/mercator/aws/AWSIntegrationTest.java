@@ -35,7 +35,7 @@ public abstract class AWSIntegrationTest {
 	synchronized Projector getProjector() {
 		if (projector == null) {
 		
-			Projector p = new BasicProjector(Maps.newHashMap());
+			Projector p = new Projector.Builder().build();
 			this.projector = p;
 		}
 		return projector;

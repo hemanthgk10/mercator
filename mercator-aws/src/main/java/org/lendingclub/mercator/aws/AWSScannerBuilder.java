@@ -36,6 +36,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 
+@SuppressWarnings("rawtypes")
 public class  AWSScannerBuilder extends ScannerBuilder<AWSScanner> {
 
 
@@ -148,6 +149,7 @@ public class  AWSScannerBuilder extends ScannerBuilder<AWSScanner> {
 		return this;
 	}
 
+	@SuppressWarnings("rawtypes")
 	public AwsClientBuilder configure(AwsClientBuilder b) {
 	
 		b = b.withRegion(Regions.fromName(region.getName())).withCredentials(getCredentialsProvider());

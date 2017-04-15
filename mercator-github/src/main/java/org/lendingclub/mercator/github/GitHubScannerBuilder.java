@@ -23,27 +23,30 @@ import com.google.common.collect.Maps;
 
 public class  GitHubScannerBuilder extends ScannerBuilder<GitHubScanner> {
 
-	Map<String,String> props = Maps.newConcurrentMap();
-	
+
+	String token;
+	String url;
+	String username;
+	String password;
 	
 	
 	public GitHubScannerBuilder withToken(String token) {
-		props.put("github.token", token);
+		this.token = token;
 		return this;
 	}
 
 	public GitHubScannerBuilder withUrl(String url) {
-		props.put("github.url", url);
+		this.url = url;
 		return this;
 	}
 	
 	public GitHubScannerBuilder withUsername(String username) {
-		props.put("github.username", username);
+		this.username = username;
 		return this;
 	}
 	
 	public GitHubScannerBuilder withPassword(String password) {
-		props.put("github.password", password);
+		this.password = password;
 		return this;
 	}
 	
@@ -51,7 +54,7 @@ public class  GitHubScannerBuilder extends ScannerBuilder<GitHubScanner> {
 	public GitHubScanner build() {
 
 		
-		return new GitHubScanner(this, props);
+		return new GitHubScanner(this);
 		
 	}
 

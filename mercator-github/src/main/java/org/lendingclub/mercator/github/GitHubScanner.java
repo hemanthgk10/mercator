@@ -16,7 +16,6 @@
 package org.lendingclub.mercator.github;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.kohsuke.github.GHOrganization;
 import org.kohsuke.github.GHRepository;
@@ -38,8 +37,9 @@ public class GitHubScanner extends AbstractScanner {
 	Logger logger = LoggerFactory.getLogger(GitHubScanner.class);
 	Supplier<GitHub> supplier;
 
-	public GitHubScanner(GitHubScannerBuilder builder, Map<String, String> props) {
-		super(builder, props);
+	
+	public GitHubScanner(GitHubScannerBuilder builder) {
+		super(builder);
 		supplier = Suppliers.memoize(new GitHubSupplier());
 	}
 
@@ -132,10 +132,11 @@ public class GitHubScanner extends AbstractScanner {
 	class GitHubSupplier implements Supplier<GitHub> {
 		public GitHub get() {
 			try {
-				String url = getConfig().get("github.url");
-				String token = getConfig().get("github.token");
-				String username = getConfig().get("github.username");
-				String password = getConfig().get("github.password");
+				GitHubScannerBuilder ghb = (GitHubScannerBuilder) getBuilder();
+				String url = ghb.url;
+				String token = ghb.token ;
+				String username = ghb.username;
+				String password = ghb.password;
 
 				if (!Strings.isNullOrEmpty(url)) {
 					// enterprise

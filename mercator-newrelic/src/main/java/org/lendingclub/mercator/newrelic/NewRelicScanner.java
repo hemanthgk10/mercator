@@ -39,8 +39,8 @@ public class NewRelicScanner extends AbstractScanner {
 	
 	private Supplier<NewRelicClient> clientSupplier = Suppliers.memoize(new NewRelicClientSupplier());
 
-	public NewRelicScanner(ScannerBuilder<? extends Scanner> builder, Map<String, String> props) {
-		super(builder, props);
+	public NewRelicScanner(ScannerBuilder<? extends Scanner> builder) {
+		super(builder);
 	}
 
 	@Override
@@ -194,7 +194,8 @@ public class NewRelicScanner extends AbstractScanner {
 
 		@Override
 		public NewRelicClient get() {
-			return new NewRelicClientImpl(getConfig().get("newrelic.token"), getConfig().get("newrelic.accountId"));
+			NewRelicScannerBuilder builder = (NewRelicScannerBuilder) getBuilder();
+			return new NewRelicClientImpl(builder.token,builder.accountId);
 		}
 	}
 

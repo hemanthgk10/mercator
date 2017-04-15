@@ -21,34 +21,35 @@ import org.lendingclub.mercator.core.ScannerBuilder;
 
 import com.google.common.collect.Maps;
 
-public class JenkinsScannerBuilder extends ScannerBuilder<JenkinsScanner>{
+public class JenkinsScannerBuilder extends ScannerBuilder<JenkinsScanner> {
 
-	Map<String,String> props = Maps.newHashMap();
-	
+	String url;
+	String username;
+	String password;
+
 	public JenkinsScannerBuilder() {
-		
+
 	}
 
 	public JenkinsScannerBuilder withUrl(String url) {
-		props.put("jenkins.url", url);
+		this.url = url;
 		return this;
 	}
-	
+
 	public JenkinsScannerBuilder withUsername(String username) {
-		props.put("jenkins.username", username);
+		this.username = username;
 		return this;
 	}
-	
+
 	public JenkinsScannerBuilder withPassword(String password) {
-		props.put("jenkins.password", password);
+		this.password = password;
 		return this;
 	}
-	
-	
+
 	@Override
 	public JenkinsScanner build() {
-	
-		return new JenkinsScanner(this, props);
+
+		return new JenkinsScanner(this);
 	}
 
 }

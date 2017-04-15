@@ -13,30 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.lendingclub.mercator.docker;
+package org.lendingclub.mercator.core;
 
+import org.junit.Ignore;
 import org.junit.Test;
-import org.lendingclub.mercator.core.BasicProjector;
-import org.lendingclub.mercator.core.Projector;
-import org.macgyver.mercator.docker.DockerScanner;
-import org.macgyver.mercator.docker.DockerScannerBuilder;
+import org.neo4j.driver.internal.DriverFactory;
+import org.neo4j.driver.v1.AuthTokens;
+import org.neo4j.driver.v1.Driver;
+import org.neo4j.driver.v1.GraphDatabase;
 
-public class DockerTest {
+@Ignore
+public class DocTest {
 
 	@Test
-	public void testLocalDockerDaemon() {
-
-		try {
-			Projector p = new Projector.Builder().build();
-			DockerScanner ds = p.createBuilder(DockerScannerBuilder.class).build();
-			
-			ds.getSchemaManager().applyConstraints();
-			ds.scan();
-
-		} catch (Exception e) {
-
-			e.printStackTrace();
-		}
-
+	public void testIt() {
+		
+		Projector p = new Projector.Builder()
+				.withNeoRxConfig(cfg->{
+					
+					Driver driver = GraphDatabase.driver( "bolt://localhost:7687", AuthTokens.basic( "neo4j", "neo4j" ) );
+					cfg.withDriver(driver);
+				})
+				.build();
 	}
 }

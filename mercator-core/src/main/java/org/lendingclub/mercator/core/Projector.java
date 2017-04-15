@@ -15,15 +15,72 @@
  */
 package org.lendingclub.mercator.core;
 
-import java.util.Map;
-
 import org.lendingclub.neorx.NeoRxClient;
 
+import com.google.common.base.Strings;
 
-public interface Projector {
+public abstract class Projector {
+
+
+	public abstract NeoRxClient getNeoRxClient();
+
+	public abstract <T extends ScannerBuilder> T createBuilder(Class<T> clazz);
+
+	public static class Builder {
+		NeoRxClient neorx;
+		String url;
+		String username;
+		String password;
+		java.util.function.Consumer<NeoRxClient.Builder> config;
 	
-	public Map<String,String> getProperties();
-	public NeoRxClient getNeoRxClient();
-	public <T extends ScannerBuilder> T createBuilder(Class<T> clazz);
+		public Builder withNeoRxClient(NeoRxClient c) {
+			this.neorx = c;
+			return this;
+		}
+
+		public Builder withUrl(String url) {
+			this.url = url;
+			return this;
+		}
+
+		public Builder withNeoRxConfig(java.util.function.Consumer<NeoRxClient.Builder> cfg) {
+			this.config = cfg;
+			return this;
+		}
+		public Builder withUsername(String username) {
+			this.username = username;
+			return this;
+		}
+
+		public Builder withPassword(String password) {
+			this.password = password;
+			return this;
+		}
 	
+
+		public Projector build() {
+			if (neorx != null) {
+				return new BasicProjector(neorx);
+			}
+			
+			
+			NeoRxClient.Builder neorxBuilder = new NeoRxClient.Builder();
+			
+
+			if (!Strings.isNullOrEmpty(url)) {
+				neorxBuilder = neorxBuilder.withUrl(url);
+				
+			}
+			if ((!Strings.isNullOrEmpty(username)) && (!Strings.isNullOrEmpty(password))) {
+				neorxBuilder = neorxBuilder.withCredentials(username, password);
+			}
+			
+			if (config!=null) {
+				
+				config.accept(neorxBuilder);
+				
+			}
+			return new BasicProjector(neorxBuilder.build());
+		}
+	}
 }

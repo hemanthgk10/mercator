@@ -23,43 +23,42 @@ import com.google.common.collect.Maps;
 
 public class VMWareScannerBuilder extends ScannerBuilder<VMWareScanner> {
 
-	Map<String, String> props = Maps.newConcurrentMap();
+	public static final String URL_PROPERTY = "vmware.url";
+	public static final String USERNAME_PROPERTY = "vmware.username";
+	public static final String PASSWORD_PROPERTY = "vmware.password";
+	public static final String VALIDATE_CERTS_PROPERTY = "vmware.validateCerts";
 
-	public static final String URL_PROPERTY="vmware.url";
-	public static final String USERNAME_PROPERTY="vmware.username";
-	public static final String PASSWORD_PROPERTY="vmware.password";
-	public static final String VALIDATE_CERTS_PROPERTY="vmware.validateCerts";
-	
+	String url;
+	String username;
+	String password;
+	boolean ignoreCerts = false;
+
 	public VMWareScannerBuilder withUrl(String url) {
-
-		setProperty(URL_PROPERTY, url);
+		this.url = url;
 		return this;
 	}
 
 	public VMWareScannerBuilder withUsername(String username) {
 
-		setProperty(USERNAME_PROPERTY, username);
+		this.username = username;
 		return this;
 	}
 
 	public VMWareScannerBuilder withPassword(String password) {
 
-		setProperty(PASSWORD_PROPERTY, password);
+		this.password = password;
 		return this;
 	}
 
-	private void setProperty(String key, String val) {
-		if (val == null) {
-			props.remove(key);
-		} else {
-			props.put(key, val);
-		}
+	public VMWareScannerBuilder withIgnoreCerts(boolean b) {
+		this.ignoreCerts = b;
+		return this;
 	}
 
 	@Override
 	public VMWareScanner build() {
 
-		return new VMWareScanner(this, props);
+		return new VMWareScanner(this);
 
 	}
 

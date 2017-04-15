@@ -1,4 +1,7 @@
 
+## 1.5.0 - 2017-04-15
+* Refactor initialization to remove all soft-property config
+
 ## 1.4.3 - 2017-04-03
 * use NeoRx 2.0.2 to address complex return types
 

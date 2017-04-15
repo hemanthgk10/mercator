@@ -26,13 +26,23 @@ import com.google.common.collect.Lists;
 
 public class DockerScannerBuilder extends ScannerBuilder<DockerScanner> {
 
+	String DEFAULT_DOCKER_HOST = "unix:///var/run/docker.sock";
 	@Override
 	public DockerScanner build() {		
-		return new DockerScanner(this,getProjector().getProperties());
+		return new DockerScanner(this);
 	}
+
 
 	List<Consumer<Builder>> configList = Lists.newArrayList();
 
+	public DockerScannerBuilder() {
+		withDockerHost(DEFAULT_DOCKER_HOST);
+	}
+	public DockerScannerBuilder withDockerHost(String host) {
+		return withConfig(cfg->{
+			cfg.withDockerHost(host);
+		});
+	}
 	public DockerScannerBuilder withConfig(Consumer<Builder> cfg) {
 		this.configList.add(cfg);
 		return this;

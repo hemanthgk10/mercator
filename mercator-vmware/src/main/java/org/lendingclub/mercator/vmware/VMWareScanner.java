@@ -57,14 +57,12 @@ public class VMWareScanner extends AbstractScanner {
 
 
 
-	public VMWareScanner(VMWareScannerBuilder builder, Map<String, String> config) {
-		super(builder,config);
+	public VMWareScanner(VMWareScannerBuilder builder) {
+		super(builder);
 		
-		Map<String, String> cfg = new HashMap<String, String>();
-		cfg.putAll(builder.getProjector().getProperties());
-		cfg.putAll(config);
 	
-		this.serviceInstanceSupplier = Suppliers.memoize(new ServiceInstanceSupplier(cfg));
+	
+		this.serviceInstanceSupplier = Suppliers.memoize(new ServiceInstanceSupplier(builder));
 	}
 
 	protected JsonNode ensureController() {

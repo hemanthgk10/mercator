@@ -32,7 +32,7 @@ public class UCSScannerBuilder extends ScannerBuilder<UCSScanner> {
 	
 	@Override
 	public UCSScanner build() {		
-		return new UCSScanner(this,getProjector().getProperties());
+		return new UCSScanner(this);
 	}
 
 

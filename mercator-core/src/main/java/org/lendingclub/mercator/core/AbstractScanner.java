@@ -30,22 +30,21 @@ public abstract class AbstractScanner implements Scanner {
 	Logger logger = LoggerFactory.getLogger(getClass());
 
 	ScannerBuilder<? extends Scanner> builder;
-	Map<String, String> config;
 
-	public AbstractScanner(ScannerBuilder<? extends Scanner> builder, Map<String, String> props) {
+	
+	public AbstractScanner(ScannerBuilder<? extends Scanner> builder) {
 		this.builder = builder;
-		config = Maps.newHashMap();
+	
 		Preconditions.checkNotNull(builder, "builder cannot be null");
 		Preconditions.checkNotNull(builder.getProjector(), "builder.getProjector() cannot be null");
-		config.putAll(builder.getProjector().getProperties());
-		if (props != null) {
-			config.putAll(props);
-		}
+		
+
 	}
 
-	public Map<String, String> getConfig() {
-		return config;
+	protected ScannerBuilder<? extends Scanner> getBuilder() {
+		return this.builder;
 	}
+
 
 	@Override
 	public Projector getProjector() {

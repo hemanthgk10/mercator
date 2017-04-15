@@ -41,7 +41,7 @@ public class ServiceInstanceSupplier implements Supplier<ServiceInstance> {
 
 	public static final String CERTIFICATE_VERIFICATION_DEFAULT = "true";
 
-	// Projector projector;
+
 
 	static Logger logger = LoggerFactory.getLogger(ServiceInstanceSupplier.class);
 	CglibProxyFactory cglibProxyFactory = new CglibProxyFactory();
@@ -50,12 +50,10 @@ public class ServiceInstanceSupplier implements Supplier<ServiceInstance> {
 
 	List<WeakReference<RefreshingServiceInstance>> instances = Lists.newCopyOnWriteArrayList();
 
-	Map<String, String> config;
-
 	boolean refreshScheduled = false;
-
-	public ServiceInstanceSupplier(Map<String, String> config) {
-		this.config = config;
+	VMWareScannerBuilder scannerBuilder;
+	public ServiceInstanceSupplier(VMWareScannerBuilder builder) {
+		this.scannerBuilder = builder;
 		scheduleRefresh();
 	}
 
@@ -120,12 +118,10 @@ public class ServiceInstanceSupplier implements Supplier<ServiceInstance> {
 	public ServiceInstance get() {
 		try {
 
-			boolean ignoreCerts = !Boolean.parseBoolean(config.getOrDefault(VMWareScannerBuilder.VALIDATE_CERTS_PROPERTY, "false"));
-			String url = config.get(VMWareScannerBuilder.URL_PROPERTY);
-			String username = config.get(VMWareScannerBuilder.USERNAME_PROPERTY);
-			logger.info("connecting to {} as {}", url, username);
-			RefreshingServiceInstance si = new RefreshingServiceInstance(new URL(url), username,
-					config.get(VMWareScannerBuilder.PASSWORD_PROPERTY), ignoreCerts);
+			
+			logger.info("connecting to {} as {}", scannerBuilder.url, scannerBuilder.username);
+			RefreshingServiceInstance si = new RefreshingServiceInstance(new URL(scannerBuilder.url), scannerBuilder.username,
+					scannerBuilder.password, scannerBuilder.ignoreCerts);
 
 			final RefreshingServiceInstance cglibProxy = HotSwapping.proxy(RefreshingServiceInstance.class).with(si)
 					.mode(DelegationMode.DIRECT).build(cglibProxyFactory);

@@ -66,7 +66,7 @@ public abstract class AWSScanner<T extends AmazonWebServiceClient> extends Abstr
 	public static final String AWS_ARN_ATTRIBUTE = "aws_arn";
 
 	public AWSScanner(AWSScannerBuilder builder, Class<? extends AmazonWebServiceClient> clientType, String label) {
-		super(builder, Maps.newHashMap());
+		super(builder);
 		if (builder.getRegion() == null) {
 			builder.withRegion(Region.getRegion(Regions.US_EAST_1));
 		}

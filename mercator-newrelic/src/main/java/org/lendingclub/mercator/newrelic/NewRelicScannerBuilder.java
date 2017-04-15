@@ -21,23 +21,24 @@ import org.lendingclub.mercator.core.ScannerBuilder;
 
 import com.google.common.collect.Maps;
 
-public class NewRelicScannerBuilder extends ScannerBuilder<NewRelicScanner>{
-	
-	private Map<String, String> props = Maps.newConcurrentMap();
-	
+public class NewRelicScannerBuilder extends ScannerBuilder<NewRelicScanner> {
+
+	String token;
+	String accountId;
+
 	public NewRelicScannerBuilder withToken(String token) {
-		props.put("newrelic.token", token);
+		this.token = token;
 		return this;
 	}
-	
+
 	public NewRelicScannerBuilder withAccountId(String accountId) {
-		props.put("newrelic.accountId", accountId);
+		this.accountId = accountId;
 		return this;
 	}
 
 	@Override
 	public NewRelicScanner build() {
-		return new NewRelicScanner(this, props);
+		return new NewRelicScanner(this);
 	}
 
 }

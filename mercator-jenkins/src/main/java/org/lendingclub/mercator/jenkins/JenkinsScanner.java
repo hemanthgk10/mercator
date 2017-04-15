@@ -41,6 +41,7 @@ import org.lendingclub.mercator.core.AbstractScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.base.GeneratorBase;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -54,12 +55,12 @@ public class JenkinsScanner extends AbstractScanner {
 	Supplier<JenkinsClient> clientSupplier = Suppliers.memoize(new JenkinsClientSupplier());
 	JsonNode masterNode;
 
-	public JenkinsScanner(JenkinsScannerBuilder builder, Map<String, String> props) {
-		super(builder, props);
+	public JenkinsScanner(JenkinsScannerBuilder builder) {
+		super(builder);
 	}
 
 	public void scan() {
-
+	
 		this.masterNode = updateMasterNode();
 
 		Iterator<JsonNode> t = getJenkinsClient().getServerInfo().path("jobs").elements();
@@ -116,7 +117,7 @@ public class JenkinsScanner extends AbstractScanner {
 				getProjector().getNeoRxClient().execCypher(cypher, "jobUrl", n.path("url").asText(), "sshUrl", gitUrl.get());
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.warn("problem",e);
 		}
 
 	}
@@ -126,8 +127,9 @@ public class JenkinsScanner extends AbstractScanner {
 		@Override
 		public JenkinsClient get() {
 
-			return new JenkinsClientImpl(getConfig().get("jenkins.url"), getConfig().get("jenkins.username"),
-					getConfig().get("jenkins.password"));
+			JenkinsScannerBuilder builder = (JenkinsScannerBuilder) getBuilder();
+			return new JenkinsClientImpl(builder.url, builder.username,
+					builder.password);
 		}
 
 	}

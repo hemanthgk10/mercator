@@ -53,54 +53,53 @@ bolt://localhost:
 
 == Core Configuration
 
-The https://github.com/LendingClub/mercator/blob/master/mercator-core/src/main/java/org/lendingclub/mercator/core/Mercator.java[Mercator] class is the cornerstone of the
+The https://github.com/LendingClub/mercator/blob/master/mercator-core/src/main/java/org/lendingclub/mercator/core/Projector.java[Projector] class is the cornerstone of the
 Mercator project.  It exposes configuration and a client for interacting with Neo4j.
 
 Mercator doesn't use Spring, Dagger, Guice or any other DI framework.  That is your choice.  Mercator is intended to be simple and straightorward to use.
 
-To create a Mercator instance that connects to Neo4j at bolt://localhost:7687 with no username or password:
+To create a Projector instance that connects to Neo4j at bolt://localhost:7687 with no username or password:
 
 [[app-listing]]
 [source,java]
 ----
-Projector projector = new BasicProjector();
+Projector projector = new Projector.Builder.build();
 ----
 
-The following configuration options can be passed through the ```Projector(Map config)``` constructor:
-
-.Mercator Neo4j Config
-|===
-|Property Name |Description |Default Value 
-
-| neo4j.url     
-|  URL for connecting to Neo4j BOLT Listener 
-| bolt://localhost:7687
-
-| neo4j.username
-| Username for authentication
-| N/A
-
-| neo4j.password
-| Password for authentication 
-| N/A
-|===
-
-Usage is fairly self-explanatory:
+To use a different URL:
 
 [[app-listing]]
 [source,java]
 ----
-Map<String,String> config = new HashMap<>();
-config.put("neo4j.url","bolt://localhost:7687);
-config.put("neo4j.username","myusername");
-config.put("neo4j.username","mypassword");
-
-Projector projector = new BasicProjector(config);
-
-The `Projector` is thread-safe.  It can and should be shared throughout your service.
-
+Projector projector = new Projector.Builder().withUrl("bolt://myserver:7687").build();
 ----
 
+To provide credentials:
+
+[[app-listing]]
+[source,java]
+----
+
+Projector p = new Projector.Builder()
+    .withUrl("bolt://myserver:7687")
+    .withUsername("scott")
+    .withPassword("tiger")
+    .build();
+----
+
+If you need more control over the underlying neo4j Driver config:
+
+[[app-listing]]
+[source,java]
+----
+
+Projector p = new Projector.Builder()
+    .withNeoRxConfig(cfg->{
+        Driver driver = GraphDatabase.driver( "bolt://localhost:7687", AuthTokens.basic( "neo4j", "neo4j" ) );
+        cfg.withDriver(driver);
+    })
+    .build();
+----
 
 == AWS
 
@@ -109,7 +108,7 @@ Scanning an AWS region involves running something like the following:
 [[app-listing]]
 [source,java]
 ----
-BasicProjector projector = new BasicProjector();
+Projector projector = new Projector.Builder().build();
 
 AllEntityScanner scanner = projector
     .createBuilder(AWSScannerBuilder.class)
@@ -151,7 +150,7 @@ Mercator can build a graph of VMWare entities with the following bit of code:
 [[app-listing]]
 [source,java]
 ----
-BasicProjector projector = new BasicProjector();
+Projector projector = new Projector.Builder().build();
 
 VMWareScanner scanner = projector.createBuilder(VMWareScannerBuilder.class)
 			.withUrl("https://myvcenter.example.com/sdk")

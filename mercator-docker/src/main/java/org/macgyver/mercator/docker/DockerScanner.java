@@ -15,8 +15,6 @@
  */
 package org.macgyver.mercator.docker;
 
-import java.util.Map;
-
 import org.lendingclub.mercator.core.AbstractScanner;
 import org.lendingclub.mercator.core.Scanner;
 import org.lendingclub.mercator.core.ScannerBuilder;
@@ -54,8 +52,8 @@ public class DockerScanner extends AbstractScanner {
 	Supplier<DockerClient> supplier;
 
 	Supplier<String> dockerIdSupplier = Suppliers.memoize(new DockerManagerIdSupplier());
-	public DockerScanner(ScannerBuilder<? extends Scanner> builder, Map<String, String> props) {
-		super(builder, props);
+	public DockerScanner(ScannerBuilder<? extends Scanner> builder) {
+		super(builder);
 
 		supplier = Suppliers.memoize(new DockerClientSupplier());
 		this.dockerScannerBuilder = (DockerScannerBuilder) builder;
@@ -64,16 +62,18 @@ public class DockerScanner extends AbstractScanner {
 
 	class DockerClientSupplier implements Supplier<DockerClient> {
 		public DockerClient get() {
-			String host = getConfig().getOrDefault("DOCKER_HOST", "unix:///var/run/docker.sock");
-			Builder builder = DefaultDockerClientConfig.createDefaultConfigBuilder().withDockerHost(host);
+				
+			Builder builder = DefaultDockerClientConfig.createDefaultConfigBuilder();
 			
 			
-			DefaultDockerClientConfig cc  =		builder.build();
-
+		
 			dockerScannerBuilder.configList.forEach(c->{
 				c.accept(builder);
 			});
 			
+			
+			DefaultDockerClientConfig cc  =	 builder.build();
+
 			
 			DockerCmdExecFactory dockerCmdExecFactory = new JerseyDockerCmdExecFactory().withReadTimeout(1000)
 					.withConnectTimeout(1000).withMaxTotalConnections(100).withMaxPerRouteConnections(10);
@@ -160,7 +160,7 @@ public class DockerScanner extends AbstractScanner {
 	public void scanImages() {
 		getDockerClient().listImagesCmd().exec().forEach(img -> {
 			
-		
+
 			// Note that images don't really belong to a cluster.  They are unique across time and space by SHA256 and may be present
 			// anywhere.
 			getProjector().getNeoRxClient().execCypher("merge (x:DockerImage {mercatorId:{id}}) set x+={props}", "id",

@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AbstractUnitTest {
 
-	static BasicProjector projector = new BasicProjector();
+	static Projector projector = new Projector.Builder().build();
 	
 	ObjectMapper mapper = new ObjectMapper();
 	

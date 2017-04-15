@@ -20,12 +20,13 @@ import org.junit.Test;
 import org.lendingclub.mercator.aws.AWSScannerBuilder;
 import org.lendingclub.mercator.aws.AccountScanner;
 import org.lendingclub.mercator.core.BasicProjector;
+import org.lendingclub.mercator.core.Projector;
 
 public class FluencyTest {
 
 	@Test
 	public void test() {
-		BasicProjector p = new BasicProjector();
+		Projector p = new Projector.Builder().build();
 		
 		Assertions.assertThat(p.createBuilder(AWSScannerBuilder.class)).isNotNull();
 		Assertions.assertThat(p.createBuilder(AWSScannerBuilder.class).getProjector()).isNotNull();

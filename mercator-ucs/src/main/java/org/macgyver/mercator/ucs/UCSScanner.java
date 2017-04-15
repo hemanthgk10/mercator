@@ -46,8 +46,8 @@ public class UCSScanner extends AbstractScanner  {
 
 	AtomicReference<UCSClient> ucsClientRef = new AtomicReference<>();
 
-	public UCSScanner(ScannerBuilder<? extends Scanner> builder, Map<String, String> props) {
-		super(builder, props);
+	public UCSScanner(ScannerBuilder<? extends Scanner> builder) {
+		super(builder);
 
 		this.ucsScannerBuilder = (UCSScannerBuilder) builder;
 
