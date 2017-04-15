@@ -73,7 +73,7 @@ The following configuration options can be passed through the ```Projector(Map c
 |Property Name |Description |Default Value 
 
 | neo4j.url     
-|  URL for connecting to Neo4j REST API 
+|  URL for connecting to Neo4j BOLT Listener 
 | bolt://localhost:7687
 
 | neo4j.username
