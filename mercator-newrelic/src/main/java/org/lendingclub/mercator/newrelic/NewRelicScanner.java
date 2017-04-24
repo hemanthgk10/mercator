@@ -18,7 +18,6 @@ package org.lendingclub.mercator.newrelic;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 import org.lendingclub.mercator.core.AbstractScanner;
 import org.lendingclub.mercator.core.Scanner;
@@ -155,13 +154,15 @@ public class NewRelicScanner extends AbstractScanner {
 						+ "MATCH (p: NewRelicAlertPolicy {nr_policyId: {policyId}, nr_accountId:{accountId}}) "
 						+ "MERGE ( c:NewRelicAlertCondition { nr_conditionId: toString(condition.id), nr_accountId: {accountId} }) "
 						+ "ON CREATE SET c.type = condition.type, c.name = condition.name, c.enabled = condition.enabled, "
-						+ "c.metricType = condition.metrics, c.createTs = timestamp(), c.updateTs = timestamp() "
+						+ "c.metricType = condition.metric, c.createTs = timestamp(), c.updateTs = timestamp() "
 						+ "ON MATCH SET c.updateTs = timestamp(), c.enabled = condition.enabled, c.type = condition.type "
-						+ "MERGE (c)-[:BELONGS_TO]->(p)"
-						+ "FOREACH ( sid IN condition.entities | MERGE (s:NewRelicServer { nr_serverId:sid, nr_accountId:{accountId} }) MERGE (s)-[:ATTACHED_TO]->(c))";
+						+ "MERGE (c)-[:BELONGS_TO]->(p) "
+						+ "with c,condition, CASE WHEN c.type = 'servers_metric' then [1] ELSE [] END AS aps_var, "
+						+ "CASE WHEN c.type = 'apm_app_metric' then [1] ELSE [] END AS apm_var "
+						+ "FOREACH ( s IN aps_var | FOREACH(sid in condition.entities | MERGE (s:NewRelicServer { nr_serverId:sid, nr_accountId:{accountId} }) MERGE (s)-[:ATTACHED_TO]->(c))) "
+						+ "FOREACH ( m IN apm_var | FOREACH(mid in condition.entities | MERGE (m:NewRelicApplication { nr_appId:mid, nr_accountId:{accountId} }) MERGE (m)-[:ATTACHED_TO]->(c))) ";
 				
 				getProjector().getNeoRxClient().execCypher(conditionsCypher, "json", alertConditions, "policyId", policyId, "accountId", clientSupplier.get().getAccountId());
-				
 			}
 		});
 		
