@@ -1,4 +1,4 @@
-## 1.5.1 - 2017-04-24
+## 1.5.2 - 2017-04-24
 * Improve docker support
 * Complete package rename to org.lendingclub.*
 * NewRelic Fix
