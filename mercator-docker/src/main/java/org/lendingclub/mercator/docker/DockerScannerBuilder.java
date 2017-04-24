@@ -28,7 +28,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.assertj.core.util.Strings;
 import org.lendingclub.mercator.core.MercatorException;
 import org.lendingclub.mercator.core.ScannerBuilder;
 import org.slf4j.Logger;
@@ -36,34 +35,37 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.core.DefaultDockerClientConfig.Builder;
-import com.google.common.base.Suppliers;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 
 public class DockerScannerBuilder extends ScannerBuilder<DockerScanner> {
 
 	static Logger logger = LoggerFactory.getLogger(DockerScannerBuilder.class);
-	
+
 	String LOCAL_DOCKER_DAEMON = "unix:///var/run/docker.sock";
+
 	@Override
-	public DockerScanner build() {		
+	public DockerScanner build() {
 		return new DockerScanner(this);
 	}
+
 	String managerId;
 
 	List<Consumer<Builder>> configList = Lists.newArrayList();
-	Supplier<DockerClient> dockerClientSupplier = null;
-	
+
+	DockerClientSupplier.Builder dockerClientSupplierBuilder = new DockerClientSupplier.Builder();
+
 	public DockerScannerBuilder() {
-		
+
 	}
-	
+
 	/**
-	 * Sets a synthetic id for the swarm.  There may be cases where the id of the cluster can't be obtained and we want to set it.
+	 * Sets a synthetic id for the swarm. There may be cases where the id of the
+	 * cluster can't be obtained and we want to set it.
+	 * 
 	 * @param id
 	 * @return
 	 */
@@ -71,68 +73,66 @@ public class DockerScannerBuilder extends ScannerBuilder<DockerScanner> {
 		this.managerId = id;
 		return this;
 	}
-	
+
 	public DockerScannerBuilder withLocalDockerDaemon() {
 		return withDockerHost(LOCAL_DOCKER_DAEMON);
 	}
+
 	public DockerScannerBuilder withDockerHost(String host) {
-		return withConfig(cfg->{
-			logger.info("using docker host: {}",host);
+
+		return withClientBuilder(cfg -> {
 			cfg.withDockerHost(host);
 		});
+
 	}
-	public DockerScannerBuilder withClientConfig(File f) {
-		logger.info("loading config from: {}",f);
-		JsonNode n = loadDockerConfig(f);
-		
-		if (!n.isObject()) {
-			throw new MercatorException("could not load config from: "+f);
-		}
-		
-		String dockerHost = n.path("DOCKER_HOST").asText();
-		String certPath = n.path("DOCKER_CERT_PATH").asText(null);
-		String tlsVerify = n.path("DOCKER_TLS_VERIFY").asText("1").trim();
-	
-		boolean isVerifyEnabled = tlsVerify.equals("1") || tlsVerify.toLowerCase().equals("true");
-		if (Strings.isNullOrEmpty(dockerHost)) {
-			throw new MercatorException("DOCKER_HOST not found in "+f);
-		}
-		if (Strings.isNullOrEmpty(certPath)) {
-			throw new MercatorException("DOCKER_CERT_PATH not found in "+f);
-		}
-		return withDockerHost(dockerHost).withConfig(cfg->{
-			
-			if (!Strings.isNullOrEmpty(certPath)) {
-				
-				cfg.withDockerCertPath(certPath);
-				cfg.withDockerTlsVerify(isVerifyEnabled);
-			}
+
+	public DockerScannerBuilder withName(String name) {
+		return withClientBuilder(cfg -> {
+			cfg.withName(name);
 		});
 
 	}
-	public DockerScannerBuilder withConfig(Consumer<Builder> cfg) {
-		this.configList.add(cfg);
-		return this;
-	}
-	
-	public DockerScannerBuilder withDockerClientSupplier(Supplier<DockerClient> supplier) {
-		this.dockerClientSupplier = supplier;
-		return this;
-	}
-	public DockerScannerBuilder withDockerClient(DockerClient client) {
-		this.dockerClientSupplier = new Supplier<DockerClient>() {
 
-			@Override
-			public DockerClient get() {
-				return client;
-			}
-			
-		};
+	public DockerScannerBuilder withClientBuilder(Consumer<DockerClientSupplier.Builder> b) {
+		b.accept(dockerClientSupplierBuilder);
+
 		return this;
 	}
-	
-	public static JsonNode loadDockerConfig(File dir) {
-	
+
+	public DockerScannerBuilder withDockerConfigDir(File f) {
+		return withClientBuilder(cfg -> {
+			cfg.withDockerConfigDir(f);
+		});
+	}
+
+	public static List<JsonNode> loadDockerConfig(File dir, boolean recursive) {
+
+		List<JsonNode> list = Lists.newArrayList();
+		if (recursive) {
+
+			if (dir == null || !dir.isDirectory()) {
+				return list;
+			}
+
+			try (Stream<Path> ds = Files.walk(dir.toPath())) {
+
+				ds.forEach(it -> {
+					Optional<JsonNode> cfg = loadDockerConfig(it.toFile());
+					if (cfg.isPresent()) {
+						list.add(cfg.get());
+					}
+
+				});
+			} catch (IOException e) {
+				logger.warn("problem", e);
+			}
+
+		}
+		return list;
+	}
+
+	public static Optional<JsonNode> loadDockerConfig(File dir) {
+
 		Map<String, String> map = Maps.newHashMap();
 		Pattern p = Pattern.compile("^\\s*export\\s*(.*)=(.*)\\s*");
 		if (dir != null && dir.isDirectory()) {
@@ -151,14 +151,13 @@ public class DockerScannerBuilder extends ScannerBuilder<DockerScanner> {
 						}
 					});
 					JsonNode n = new ObjectMapper().convertValue(map, JsonNode.class);
-					
-					
-					return n;
+
+					return Optional.of(n);
 				}
 			} catch (IOException e) {
 				logger.warn("", e);
 			}
 		}
-		return NullNode.getInstance();
+		return Optional.empty();
 	}
 }

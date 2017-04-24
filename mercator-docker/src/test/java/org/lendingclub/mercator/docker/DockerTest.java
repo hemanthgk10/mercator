@@ -15,8 +15,12 @@
  */
 package org.lendingclub.mercator.docker;
 
+import java.io.File;
+
 import org.junit.Test;
 import org.lendingclub.mercator.core.Projector;
+
+import com.github.dockerjava.api.DockerClient;
 
 public class DockerTest {
 
@@ -25,11 +29,16 @@ public class DockerTest {
 
 		try {
 			Projector p = new Projector.Builder().build();
-			DockerScanner ds = p.createBuilder(DockerScannerBuilder.class).withLocalDockerDaemon().build();
+			DockerScannerBuilder dockerScannerBuilder = p.createBuilder(DockerScannerBuilder.class);
+	
+			DockerScanner ds =dockerScannerBuilder.withLocalDockerDaemon().withName("foo").build();
+			
 			
 			ds.getSchemaManager().applyConstraints();
 			ds.scan();
 
+		
+			
 		} catch (Exception e) {
 
 			e.printStackTrace();
