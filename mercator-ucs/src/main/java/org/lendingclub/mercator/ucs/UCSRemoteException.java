@@ -13,24 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.macgyver.mercator.docker;
+package org.lendingclub.mercator.ucs;
 
-import org.lendingclub.mercator.core.SchemaManager;
-import org.lendingclub.neorx.NeoRxClient;
+import org.jdom2.Element;
 
-public class DockerSchemaManager extends SchemaManager {
+public class UCSRemoteException extends UCSException {
 
-	public DockerSchemaManager(NeoRxClient client) {
-		super(client);
-		
+	String code;
+	String description;
+	
+	public UCSRemoteException(String code, String description) {
+		super("code="+code+" description="+description);
+		this.code = code;
+		this.description = description;
 	}
-
-	@Override
-	public void applyConstraints() {
-		applyConstraint("CREATE CONSTRAINT ON (a:DockerImage) assert a.mercatorId IS UNIQUE ");
-		
-		applyConstraint("CREATE CONSTRAINT ON (a:DockerContainer) assert a.mercatorId IS UNIQUE ");
-		applyConstraint("CREATE CONSTRAINT ON (a:DockerManager) assert a.mercatorId IS UNIQUE ");
+	
+	
+	public static UCSRemoteException fromResponse(Element element) {
+		String code = element.getAttributeValue("errorCode");
+		String desc = element.getAttributeValue("errorDescr");
+		UCSRemoteException e = new UCSRemoteException(code, desc);
+		return e;
 	}
-
 }

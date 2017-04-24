@@ -16,10 +16,7 @@
 package org.lendingclub.mercator.docker;
 
 import org.junit.Test;
-import org.lendingclub.mercator.core.BasicProjector;
 import org.lendingclub.mercator.core.Projector;
-import org.macgyver.mercator.docker.DockerScanner;
-import org.macgyver.mercator.docker.DockerScannerBuilder;
 
 public class DockerTest {
 
@@ -28,7 +25,7 @@ public class DockerTest {
 
 		try {
 			Projector p = new Projector.Builder().build();
-			DockerScanner ds = p.createBuilder(DockerScannerBuilder.class).build();
+			DockerScanner ds = p.createBuilder(DockerScannerBuilder.class).withLocalDockerDaemon().build();
 			
 			ds.getSchemaManager().applyConstraints();
 			ds.scan();

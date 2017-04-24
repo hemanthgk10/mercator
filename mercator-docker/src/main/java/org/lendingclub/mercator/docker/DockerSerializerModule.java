@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.macgyver.mercator.docker;
+package org.lendingclub.mercator.docker;
 
 import java.io.IOException;
 
@@ -34,30 +34,29 @@ import com.google.common.base.Converter;
 
 public class DockerSerializerModule extends SimpleModule {
 
-
 	private static final long serialVersionUID = 1L;
 	ObjectMapper vanillaObjectMapper = new ObjectMapper();
-	
-	
+
 	public DockerSerializerModule() {
 		addSerializer(Container.class, new ContainerSerializer());
-		addSerializer(Info.class,new InfoSerilaizer());
-		addSerializer(Image.class,new ImageSerializer());
-		addSerializer(InspectContainerResponse.class,new InspectContainerResponseSerializer());
+		addSerializer(Info.class, new InfoSerilaizer());
+		addSerializer(Image.class, new ImageSerializer());
+		addSerializer(InspectContainerResponse.class, new InspectContainerResponseSerializer());
 	}
+
 	class InfoSerilaizer extends StdSerializer<Info> {
 
 		private static final long serialVersionUID = 1L;
+
 		protected InfoSerilaizer() {
 			super(Info.class);
 		}
 
 		@Override
 		public void serialize(Info value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-		
-	
-			ObjectNode intermediate = (ObjectNode)  flatten(vanillaObjectMapper.valueToTree(value));
-		
+
+			ObjectNode intermediate = (ObjectNode) flatten(vanillaObjectMapper.valueToTree(value));
+
 			ObjectNode target = vanillaObjectMapper.createObjectNode();
 			Converter<String, String> caseFormat = CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.LOWER_CAMEL);
 
@@ -85,65 +84,64 @@ public class DockerSerializerModule extends SimpleModule {
 
 			});
 			gen.writeTree(target);
-			
+
 		}
-		
+
 	}
-	
+
 	void renameAttribute(ObjectNode x, String key, String key2) {
 		JsonNode val = x.get(key);
-		if (val!=null) {
+		if (val != null) {
 			x.remove(key);
 			x.set(key2, val);
 		}
 	}
+
 	public ObjectNode flatten(JsonNode n) {
 		ObjectNode out = vanillaObjectMapper.createObjectNode();
 		Converter<String, String> caseFormat = CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.LOWER_CAMEL);
-		
+
 		n.fields().forEachRemaining(it -> {
 			JsonNode val = it.getValue();
 			String key = it.getKey();
 			key = caseFormat.convert(key);
 			if (val.isValueNode()) {
-				
+
 				out.set(key, it.getValue());
-			}
-			else if (val.isArray()) {
-				if (val.size()==0) {
+			} else if (val.isArray()) {
+				if (val.size() == 0) {
 					out.set(key, val);
 				}
 				boolean valid = true;
-				Class<? extends Object> type=null;
+				Class<? extends Object> type = null;
 				ArrayNode an = (ArrayNode) val;
-				for (int i=0; valid && i<an.size(); i++) {
+				for (int i = 0; valid && i < an.size(); i++) {
 					if (!an.get(i).isValueNode()) {
-						valid=false;
+						valid = false;
 					}
-					if (type!=null && an.get(i).getClass()!=type) {
+					if (type != null && an.get(i).getClass() != type) {
 						valid = false;
 					}
 				}
-				
-				
+
 			}
 		});
-		renameAttribute(out, "oSType","osType");
-		renameAttribute(out,"iD","id");
-		renameAttribute(out,"neventsListener","nEventsListener");
-		renameAttribute(out,"cPUSet","cpuSet");
-		renameAttribute(out,"cPUShares","cpuShares");
-		renameAttribute(out,"iPv4Forwarding","ipv4Forwarding");
-		renameAttribute(out,"oOMKilled","oomKilled");
-		renameAttribute(out,"state_oomkilled","state_oomKilled");
-		renameAttribute(out,"bridgeNfIptables","bridgeNfIpTables");
-		renameAttribute(out,"bridgeNfIp6tables","bridgeNfIp6Tables");
+		renameAttribute(out, "oSType", "osType");
+		renameAttribute(out, "iD", "id");
+		renameAttribute(out, "neventsListener", "nEventsListener");
+		renameAttribute(out, "cPUSet", "cpuSet");
+		renameAttribute(out, "cPUShares", "cpuShares");
+		renameAttribute(out, "iPv4Forwarding", "ipv4Forwarding");
+		renameAttribute(out, "oOMKilled", "oomKilled");
+		renameAttribute(out, "state_oomkilled", "state_oomKilled");
+		renameAttribute(out, "bridgeNfIptables", "bridgeNfIpTables");
+		renameAttribute(out, "bridgeNfIp6tables", "bridgeNfIp6Tables");
 		out.remove("ngoroutines");
 		return out;
 	}
-	
+
 	class InspectContainerResponseSerializer extends StdSerializer<InspectContainerResponse> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		protected InspectContainerResponseSerializer() {
@@ -154,25 +152,26 @@ public class DockerSerializerModule extends SimpleModule {
 		public void serialize(InspectContainerResponse value, JsonGenerator gen, SerializerProvider provider)
 				throws IOException {
 			ObjectNode n = (ObjectNode) vanillaObjectMapper.convertValue(value, JsonNode.class);
-			
-			
+
 			ObjectNode out = flatten(n);
-			
-			addWithPrefix(out,"config",flatten(n.path("Config")));
-			addWithPrefix(out,"state",flatten(n.path("State")));
+
+			addWithPrefix(out, "config", flatten(n.path("Config")));
+			addWithPrefix(out, "state", flatten(n.path("State")));
 			gen.writeTree(out);
 		}
 	}
+
 	class ImageSerializer extends StdSerializer<Image> {
-		
+
 		private static final long serialVersionUID = 1L;
+
 		protected ImageSerializer() {
 			super(Image.class);
 		}
 
 		@Override
 		public void serialize(Image img, JsonGenerator gen, SerializerProvider provider) throws IOException {
-		
+
 			ObjectNode x = vanillaObjectMapper.createObjectNode();
 			x.put("created", img.getCreated());
 			x.put("id", img.getId());
@@ -184,15 +183,16 @@ public class DockerSerializerModule extends SimpleModule {
 			x.set("repoTags", an);
 			x.put("size", img.getSize());
 			x.put("virtualSize", img.getVirtualSize());
-			
+
 			gen.writeTree(x);
 		}
-		
-		
+
 	}
+
 	class ContainerSerializer extends StdSerializer<Container> {
 
 		private static final long serialVersionUID = 1L;
+
 		protected ContainerSerializer() {
 			super(Container.class);
 			// TODO Auto-generated constructor stub
@@ -226,16 +226,15 @@ public class DockerSerializerModule extends SimpleModule {
 
 			});
 
-		
 			gen.writeTree(target);
-			
+
 		}
-		
+
 	}
-	
+
 	protected void addWithPrefix(ObjectNode top, String prefix, JsonNode val) {
 		val.fields().forEachRemaining(it -> {
-			top.set(prefix+"_"+it.getKey(), it.getValue());
+			top.set(prefix + "_" + it.getKey(), it.getValue());
 		});
 	}
 }

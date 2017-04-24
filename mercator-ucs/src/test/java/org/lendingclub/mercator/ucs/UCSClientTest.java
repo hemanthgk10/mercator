@@ -27,8 +27,8 @@ import org.jdom2.input.SAXBuilder;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.macgyver.mercator.ucs.UCSClient;
-import org.macgyver.mercator.ucs.UCSClient.Token;
+import org.lendingclub.mercator.ucs.UCSClient;
+import org.lendingclub.mercator.ucs.UCSClient.Token;
 
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
