@@ -80,27 +80,31 @@ public class DockerScannerBuilder extends ScannerBuilder<DockerScanner> {
 
 	public DockerScannerBuilder withDockerHost(String host) {
 
-		return withClientBuilder(cfg -> {
+		return withClientSupplierConfig(cfg -> {
 			cfg.withDockerHost(host);
 		});
 
 	}
 
 	public DockerScannerBuilder withName(String name) {
-		return withClientBuilder(cfg -> {
+		return withClientSupplierConfig(cfg -> {
 			cfg.withName(name);
 		});
 
 	}
 
-	public DockerScannerBuilder withClientBuilder(Consumer<DockerClientSupplier.Builder> b) {
+	public DockerScannerBuilder withClientSupplierBuilder(DockerClientSupplier.Builder b) {
+		this.dockerClientSupplierBuilder = b;
+		return this;
+	}
+	public DockerScannerBuilder withClientSupplierConfig(Consumer<DockerClientSupplier.Builder> b) {
 		b.accept(dockerClientSupplierBuilder);
 
 		return this;
 	}
 
 	public DockerScannerBuilder withDockerConfigDir(File f) {
-		return withClientBuilder(cfg -> {
+		return withClientSupplierConfig(cfg -> {
 			cfg.withDockerConfigDir(f);
 		});
 	}

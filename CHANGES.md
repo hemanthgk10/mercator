@@ -1,3 +1,6 @@
+## 1.5.3 - 2017-04-24
+* Minor builder changes to support trident
+
 ## 1.5.2 - 2017-04-24
 * Improve docker support
 * Complete package rename to org.lendingclub.*
