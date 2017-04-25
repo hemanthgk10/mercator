@@ -66,7 +66,7 @@ public class NewRelicScanner extends AbstractScanner {
 	private void scanApms() {
 		Instant startTime = Instant.now();
 		
-		ObjectNode apps = clientSupplier.get().getApplications();
+		ObjectNode apps = getNewRelicClient().getApplications();
 		Preconditions.checkNotNull(getProjector().getNeoRxClient(), "neorx client must be set");
 		
 		String cypher = "WITH {json} as data "
@@ -94,7 +94,7 @@ public class NewRelicScanner extends AbstractScanner {
 		
 		Instant startTime = Instant.now();
 	
-		ObjectNode servers = clientSupplier.get().getServers();
+		ObjectNode servers = getNewRelicClient().getServers();
 		Preconditions.checkNotNull(getProjector().getNeoRxClient(), "neorx client must be set");
 		
 		String cypher = "WITH {json} as data "
@@ -115,7 +115,7 @@ public class NewRelicScanner extends AbstractScanner {
 		
 		Instant startTime = Instant.now();
 		
-		ObjectNode alertPolicies = clientSupplier.get().getAlertPolicies();
+		ObjectNode alertPolicies = getNewRelicClient().getAlertPolicies();
 		Preconditions.checkNotNull(getProjector().getNeoRxClient(), "neorx client must be set");
 
 		String cypher = "WITH {json} as data "
