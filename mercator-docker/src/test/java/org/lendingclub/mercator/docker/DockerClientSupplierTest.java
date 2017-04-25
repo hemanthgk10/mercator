@@ -21,28 +21,37 @@ import org.lendingclub.mercator.docker.DockerClientSupplier.Builder;
 
 public class DockerClientSupplierTest {
 
-	
 	@Test
 	public void testSupplier() {
-		
-		Builder b = 
-		new DockerClientSupplier.Builder();
-		
+
+		Builder b = new DockerClientSupplier.Builder();
+
 		b.assertNotImmutable();
-		
+
 		b.withName("foo");
-		
+
 		DockerClientSupplier cs = b.build();
-		
+
 		try {
 			b.build();
 			Assertions.failBecauseExceptionWasNotThrown(IllegalStateException.class);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			Assertions.assertThat(e).isInstanceOf(IllegalStateException.class);
 		}
-		
+
 		b = cs.newBuilder();
 		b.assertNotImmutable();
+	}
+
+	@Test
+	public void testJerseyWebTarget() {
+
+		// This will work even if docker isn't available. It tests that the
+		// reflection tricks work.
+		Assertions
+				.assertThat(
+						new DockerClientSupplier.Builder().withName("local").withLocalEngine().build().getWebTarget())
+				.isNotNull();
+
 	}
 }
