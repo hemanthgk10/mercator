@@ -39,8 +39,8 @@ public class DynectScanner extends AbstractScanner {
 	@Override
 	public void scan() {
 		
-		//List<String> zones = scanZones();
-		//scanAllRecordsByZone(zones);
+		List<String> zones = scanZones();
+		scanAllRecordsByZone(zones);
 		purgeOldData();
 	}
 	
