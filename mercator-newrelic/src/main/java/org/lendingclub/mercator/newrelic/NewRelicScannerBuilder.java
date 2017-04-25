@@ -15,11 +15,9 @@
  */
 package org.lendingclub.mercator.newrelic;
 
-import java.util.Map;
 
 import org.lendingclub.mercator.core.ScannerBuilder;
 
-import com.google.common.collect.Maps;
 
 public class NewRelicScannerBuilder extends ScannerBuilder<NewRelicScanner> {
 
