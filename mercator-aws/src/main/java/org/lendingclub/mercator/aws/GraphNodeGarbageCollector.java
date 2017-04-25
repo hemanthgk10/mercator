@@ -104,7 +104,7 @@ public class GraphNodeGarbageCollector implements CleanupTask {
 				ts);
 
 		String cypher = "match (x:" + label
-				+ " {aws_account: {account}, aws_region: {region}})-[r]-() where x.updateTs<{ts} detach delete x";
+				+ " {aws_account: {account}, aws_region: {region}}) where x.updateTs<{ts} detach delete x";
 		getNeoRxClient().execCypher(cypher, "account", account, "region", region, "ts", ts);
 	}
 
