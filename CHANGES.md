@@ -1,3 +1,11 @@
+## 1.5.5 - 2017-04-26
+* Refactor Docker scanning
+
+## 1.5.4 - 2017-04-25
+* Expose JAX-RS WebTarget directly
+* Fix AWS GraphNodeGarbageCollector 
+* Add Dyn Support
+
 ## 1.5.3 - 2017-04-24
 * Minor builder changes to support trident
 
