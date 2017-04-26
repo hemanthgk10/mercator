@@ -15,11 +15,16 @@
  */
 package org.lendingclub.mercator.docker;
 
+import java.io.File;
+
+import javax.ws.rs.client.WebTarget;
+
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.lendingclub.mercator.docker.DockerClientSupplier.Builder;
+import org.lendingclub.mercator.docker.DockerEndpointMetadata.EndpointType;
 
-public class DockerClientSupplierTest {
+public class DockerClientSupplierTest extends DockerIntegrationTest {
 
 	@Test
 	public void testSupplier() {
@@ -54,4 +59,6 @@ public class DockerClientSupplierTest {
 				.isNotNull();
 
 	}
+	
+
 }

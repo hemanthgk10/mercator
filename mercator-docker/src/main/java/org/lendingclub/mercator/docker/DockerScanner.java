@@ -16,16 +16,21 @@
 package org.lendingclub.mercator.docker;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
+import javax.ws.rs.core.Response;
 
 import org.lendingclub.mercator.core.AbstractScanner;
 import org.lendingclub.mercator.core.Scanner;
 import org.lendingclub.mercator.core.ScannerBuilder;
 import org.lendingclub.mercator.core.ScannerContext;
 import org.lendingclub.mercator.core.SchemaManager;
+import org.lendingclub.mercator.docker.DockerEndpointMetadata.EndpointType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -53,23 +58,11 @@ public class DockerScanner extends AbstractScanner {
 	}
 	DockerClientSupplier supplier;
 
-	Supplier<String> dockerIdSupplier = Suppliers.memoize(new DockerManagerIdSupplier());
-
 	public DockerScanner(ScannerBuilder<? extends Scanner> builder) {
 		super(builder);
 
 		this.dockerScannerBuilder = (DockerScannerBuilder) builder;
 
-		if (dockerScannerBuilder.managerId != null) {
-			dockerIdSupplier = new Supplier<String>() {
-
-				@Override
-				public String get() {
-					// TODO Auto-generated method stub
-					return dockerScannerBuilder.managerId;
-				}
-			};
-		}
 		this.supplier = dockerScannerBuilder.dockerClientSupplierBuilder.build();
 
 	}
@@ -103,9 +96,7 @@ public class DockerScanner extends AbstractScanner {
 		getProjector().getNeoRxClient().execCypher(cypher, "id", c.getId(), "props", n);
 
 		if (!Strings.isNullOrEmpty(hostId)) {
-			getNeoRxClient().execCypher(
-					"match (m:DockerHost {mercatorId:{managerId}}), (c:DockerContainer {mercatorId:{containerId}}) MERGE (m)-[r:HOSTS]->(c) set r.updateTs=timestamp()",
-					"managerId", hostId, "containerId", c.getId());
+
 		}
 
 		cypher = "merge (x:DockerImage {mercatorId:{imageId}}) set x.updateTs=timestamp() return x";
@@ -132,227 +123,202 @@ public class DockerScanner extends AbstractScanner {
 
 	}
 
-	private void scanContainersOnEngine() {
-		String id = getDockerManagerId();
-		new ScannerContext().exec(x -> {
-			getDockerClient().listContainersCmd().withShowAll(true).exec().forEach(it -> {
-				try {
-
-					projectContainer(it, id);
-				} catch (Exception e) {
-					ScannerContext.getScannerContext().ifPresent(ctx -> {
-						ctx.markException(e);
-
-					});
-					logger.warn("", e);
-				}
-
-			});
+	private JsonNode flattenContainer(JsonNode n) {
+		ObjectNode fn = mapper.createObjectNode();
+		n.fields().forEachRemaining(it -> {
+			if (it.getValue().isValueNode()) {
+				fn.set(it.getKey(), it.getValue());
+			}
 		});
+		n.path("Labels").fields().forEachRemaining(it -> {
+			String labelKey = "label_" + it.getKey();
+			fn.set(labelKey, it.getValue());
+		});
+		fn.set("mercatorId", n.path("Id"));
+		return fn;
 	}
 
-	public DockerEndpointType getEndpointType(DockerClient client) {
-		Info info = client.infoCmd().exec();
-		if (info == null) {
-			logger.info("info was null");
-			return DockerEndpointType.ENGINE;
+	protected void scanContainersOnEngine(DockerClientSupplier engineSupplier, String nodeId) {
+
+		scanInfo(engineSupplier, nodeId);
+		JsonNode n = engineSupplier.getWebTarget().path("/containers/json").queryParam("all", "1").request()
+				.get(JsonNode.class);
+
+		n.forEach(it -> {
+			JsonNode fn = flattenContainer(it);
+
+			String cypher = "merge (c:DockerContainer {mercatorId:{id}}) set c+={props},c.updateTs=timestamp() return c";
+
+			String containerId = fn.path("Id").asText();
+			getProjector().getNeoRxClient().execCypher(cypher, "id", containerId, "props", fn);
+
+			String imageId = fn.get("Image").asText();
+			cypher = "merge (x:DockerImage {mercatorId:{imageId}}) set x.updateTs=timestamp() return x";
+
+			getProjector().getNeoRxClient().execCypher(cypher, "imageId", imageId);
+
+			cypher = "match (di:DockerImage {mercatorId:{imageId}}), (dc:DockerContainer {mercatorId:{id}}) merge (dc)-[r:USES]->(di) set r.updateTs=timestamp()";
+
+			getProjector().getNeoRxClient().execCypher(cypher, "imageId", imageId, "id", containerId);
+
+			String hostId = engineSupplier.getWebTarget().path("/info").request().get(JsonNode.class).path("ID")
+					.asText();
+
+			getNeoRxClient().execCypher(
+					"match (m:DockerHost {mercatorId:{managerId}}), (c:DockerContainer {mercatorId:{containerId}}) MERGE (m)-[r:HOSTS]->(c) set r.updateTs=timestamp()",
+					"managerId", hostId, "containerId", containerId);
+		});
+
+	}
+
+	private JsonNode flattenInfo(JsonNode n) {
+		ObjectNode fn = mapper.createObjectNode();
+
+		n.fields().forEachRemaining(it -> {
+			if (it.getValue().isValueNode()) {
+				fn.set(it.getKey(), it.getValue());
+			}
+		});
+		return fn;
+	}
+
+	public void scanInfo(DockerClientSupplier supplier, String nodeId) {
+
+		JsonNode n = supplier.getWebTarget().path("/info").request().get(JsonNode.class);
+
+		EndpointType type = supplier.getEndpointMetadata().getEndpointType();
+
+		if (type == EndpointType.UCP) {
+			String swarmId = n.path("Swarm").path("Cluster").path("ID").asText();
+			if (!Strings.isNullOrEmpty(swarmId)) {
+				getNeoRxClient().execCypher(
+						"merge (x:DockerSwarm {mercatorId:{id}}) set x+={props}, x.updateTs=timestamp()", "id", swarmId,
+						"props", flattenInfo(n));
+			}
+		} else if (type == EndpointType.ENGINE || type == EndpointType.SWARM) {
+
+			if (type == EndpointType.SWARM) {
+				Optional<String> swarmId = supplier.getEndpointMetadata().getSwarmId();
+				if (swarmId.isPresent()) {
+					// we NO NOT put the endpoint's properties here because we are talking to a swarm manager.  We need to find a way to make this as consistent
+					// as possible with UCP
+					getNeoRxClient().execCypher(
+							"merge (x:DockerSwarm {mercatorId:{id}}) set x.updateTs=timestamp()", "id",
+							swarmId.get());
+				}
+			}
+			String id = n.path("ID").asText();
+
+			getNeoRxClient().execCypher("merge (x:DockerHost {mercatorId:{id}}) set x+={props},x.updateTs=timestamp()",
+					"id", id, "props", flattenInfo(n));
+
+			if (!Strings.isNullOrEmpty(nodeId)) {
+				getNeoRxClient().execCypher("match (x:DockerHost {mercatorId:{id}}) set x.nodeId={nodeId}", "id", id,
+						"nodeId", nodeId);
+			}
 		} else {
-			List<Object> systemStatus = info.getSystemStatus();
-			if (systemStatus != null) {
-				for (Object it : systemStatus) {
-					try {
-						if (it instanceof List) {
-							List tuple = (List) it;
-
-							if (tuple.size() > 0 && tuple.get(0).toString().contains("Cluster Managers")) {
-								return DockerEndpointType.UCP;
-							}
-
-						}
-					} catch (RuntimeException e) {
-						logger.warn("problem", e);
-					}
-				}
-			} else {
-				logger.info("system status is null...so we are talking to an engine");
-				return DockerEndpointType.ENGINE;
-			}
+			throw new IllegalStateException();
 		}
-		return DockerEndpointType.ENGINE;
+
 	}
 
-	public void scanInfo() {
-		Info info = getDockerClient().infoCmd().exec();
-
-		if (info != null) {
-			String id = info.getId();
-			if (id != null) {
-				if (getEndpointType(getDockerClient()) == DockerEndpointType.UCP) {
-					getNeoRxClient().execCypher("merge (x:DockerManager {mercatorId:{id}}) set x.updateTs=timestamp()",
-							"id", id);
-				}
-				else {
-					getNeoRxClient().execCypher("merge (x:DockerHost {mercatorId:{id}}) set x.updateTs=timestamp()",
-							"id", id);
-				}
-			}
-
+	void prettyInfo(String msg, JsonNode n) {
+		try {
+			logger.info("{} \n {}", msg, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(n));
+		} catch (JsonProcessingException e) {
+			logger.warn("", e);
 		}
+	}
 
+	private JsonNode flattenImage(JsonNode n) {
+		ObjectNode fn = mapper.createObjectNode();
+		n.fields().forEachRemaining(it -> {
+			if (it.getValue().isValueNode()) {
+				fn.set(it.getKey(), it.getValue());
+			}
+		});
+		n.path("Labels").fields().forEachRemaining(it -> {
+			String labelKey = "label_" + it.getKey();
+			fn.set(labelKey, it.getValue());
+		});
+		fn.set("mercatorId", n.path("Id"));
+		return fn;
 	}
 
 	public void scanImages() {
-		getDockerClient().listImagesCmd().exec().forEach(img -> {
+		JsonNode n = getDockerClientSupplier().getWebTarget().path("/images/json").request().get(JsonNode.class);
 
-			// Note that images don't really belong to a cluster. They are
-			// unique across time and space by SHA256 and may be present
-			// anywhere.
-			getProjector().getNeoRxClient().execCypher("merge (x:DockerImage {mercatorId:{id}}) set x+={props}", "id",
-					img.getId(), "props", mapper.valueToTree(img));
-		});
+		if (n.isArray()) {
+			n.forEach(it -> {
+				// Note that images don't really belong to a cluster. They are
+				// unique across time and space by SHA256 and may be present
+				// anywhere.
+
+				JsonNode image = flattenImage(it);
+
+				getProjector().getNeoRxClient().execCypher(
+						"merge (x:DockerImage {mercatorId:{id}}) set x+={props},x.updateTs=timestamp()", "id",
+						image.path("mercatorId").asText(), "props", image);
+			});
+		}
+
 	}
 
 	public void scan() {
 
-		scanInfo();
-		
-		DockerEndpointType type = getEndpointType(getDockerClient());
-		logger.info("endpoint type: {}",type);
+		scanInfo(getDockerClientSupplier(), null);
+
+		EndpointType type = getDockerClientSupplier().getEndpointMetadata().getEndpointType();
+		logger.info("scanning endpoint type: {}", type);
 		scanImages();
-		
-		if (type == DockerEndpointType.UCP) {
-			scanUCPManager();
+
+		if (type == EndpointType.UCP || type == EndpointType.SWARM) {
+			scanContainersOnUCPManager();
+		} else if (type == EndpointType.ENGINE) {
+			scanContainersOnEngine(getDockerClientSupplier(), null);
+		} else {
+			logger.warn("unknown endpoint type: {}", type);
 		}
-		else if (type==DockerEndpointType.ENGINE) {
-			scanContainersOnEngine();
-		}
-		else {
-			logger.warn("unknown endpoint type: {}",type);
-		}
-		
-		
 
 	}
 
-	JsonNode getClusterSummary() {
-		Info info = getDockerClient().infoCmd().exec();
-		if (info == null) {
-			return NullNode.instance;
-		}
-		boolean inNodesSection = false;
-		List<Object> statusList = info.getSystemStatus();
-		if (statusList == null) {
-			return NullNode.instance;
-		}
-		ObjectNode summary = mapper.createObjectNode();
-		ArrayNode nodes = mapper.createArrayNode();
-		summary.set("nodes", nodes);
-		ObjectNode currentNode = null;
-		String id = info.getId();
-		summary.put("id", id);
-		for (Object it : statusList) {
-			List tuple = (List) it;
-			if (tuple != null && tuple.size() > 0) {
-				String a = tuple.get(0).toString();
+	protected void scanContainersOnUCPManager() {
 
-				if (a.equals("Nodes")) {
-					inNodesSection = true;
-				} else if (a.length() > 0 && a.charAt(0) != ' ') {
-					inNodesSection = false;
-				}
-				if (!a.equals("Nodes")) {
-					if (inNodesSection) {
-						if (a.charAt(1) != ' ') {
-							currentNode = mapper.createObjectNode();
-							currentNode.put("Name", tuple.get(0).toString().trim());
-							String address = tuple.get(1).toString().trim();
-							if (!address.startsWith("tcp://")) {
-								address = "tcp://" + address;
-							}
-							currentNode.put("Address", address);
-							nodes.add(currentNode);
-						} else if (a.startsWith("  └ ")) {
-							if (currentNode != null) {
-								a = a.replace("  └ ", "").trim();
-								String val = tuple.get(1).toString().trim();
-								currentNode.put(a, val);
-							}
-						}
+		Optional<String> swarmID = getDockerClientSupplier().getEndpointMetadata().getSwarmId();
 
-					}
-				}
-			}
-		}
-
-		return summary;
-	}
-
-	protected void scanUCPManager() {
-		JsonNode summary = getClusterSummary();
-
-		String clusterId = summary.path("id").asText(null);
-		summary.path("nodes").forEach(it -> {
+		// Ideally we could get all this information from UCP...but due to some
+		// feature, it seem like it is difficult/impossible to get
+		// it to tell you which node is hosting the container.
+		getDockerClientSupplier().getWebTarget().path("/nodes").request().get(JsonNode.class).forEach(it -> {
 			try {
+				String id = it.path("ID").asText();
+				String ip = it.path("Status").path("Addr").asText();
+				logger.info("scanning node: {}", id);
 
-				ObjectNode neo4jNode = mapper.createObjectNode();
-				neo4jNode.put("name", it.path("Name").asText());
-				neo4jNode.put("address", it.path("Address").asText());
-				neo4jNode.put("serverVersion", it.path("ServerVersion").asText());
-				neo4jNode.put("id", it.path("ID").asText());
+				String engineAddress = "tcp://" + ip + ":12376";
+				logger.info("connecting to node={} via {}", id, engineAddress);
+				DockerClientSupplier engine = getDockerClientSupplier().newBuilder().withDockerHost(engineAddress)
+						.build();
 
-				String nodeId = neo4jNode.path("id").asText();
-				String cypher = "merge (a:DockerHost {mercatorId:{mercatorId}}) set a+={props}, a.updateTs=timestamp()";
-				getNeoRxClient().execCypher(cypher, "mercatorId", neo4jNode.path("id").asText(), "props", neo4jNode);
-				scanUCPManagedDockerHost(neo4jNode.get("address").asText(),nodeId);
-				if (clusterId != null) {
-					cypher = "match (m:DockerManager {mercatorId:{managerId}}), (h:DockerHost {mercatorId:{hostId}}) merge (m)-[:MANAGES]->(h)";
-					getNeoRxClient().execCypher(cypher, "managerId", clusterId, "hostId",
-							neo4jNode.path("id").asText());
+				scanContainersOnEngine(engine, id);
+
+				if (swarmID.isPresent()) {
+					logger.info("connecting swarm={} to node={}", swarmID.get(), id);
+					getProjector().getNeoRxClient().execCypher(
+							"match (s:DockerSwarm {mercatorId:{swarmId}}),(h:DockerHost {nodeId:{nodeId}}) merge (s)-[r:CONTAINS]->(h)",
+							"swarmId", swarmID.get(), "nodeId", id);
 				}
-			} catch (Exception e) {
-				logger.warn("unexpected exception", e);
+
+			} catch (RuntimeException e) {
+				logger.warn("problem scanning engine", e);
 			}
 		});
-
-	}
-
-	private void scanUCPManagedDockerHost(String address, String nodeId) {
-		DockerClientSupplier cs = getDockerClientSupplier().newBuilder().withDockerHost(address).build();
-
-		for (Container container : cs.get().listContainersCmd().exec()) {
-			try {
-				projectContainer(container, nodeId);
-			} catch (Exception e) {
-				logger.warn("", e);
-			}
-		}
 
 	}
 
 	@Override
 	public SchemaManager getSchemaManager() {
 		return new DockerSchemaManager(getProjector().getNeoRxClient());
-	}
-
-	/**
-	 * This should be an identifier that is unique over time and space. If we
-	 * are talking to a local docker daemon, it should be the unique id of that
-	 * daemon. If we are talking to a swarm cluster, it should be unique
-	 * identifier for the cluster. THis might need some adjustment. We will see.
-	 * 
-	 * @return
-	 */
-	public String getDockerManagerId() {
-		return dockerIdSupplier.get();
-	}
-
-	class DockerManagerIdSupplier implements Supplier<String> {
-
-		@Override
-		public String get() {
-			return getDockerClient().infoCmd().exec().getId();
-		}
-
 	}
 
 }

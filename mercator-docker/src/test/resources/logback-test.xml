@@ -24,7 +24,7 @@
     </appender>
 
     <logger name="com.github.dockerjava" level="INFO"/>
-    <logger name="com.github.dockerjava.jaxrs" level="DEBUG"/>
+    <logger name="com.github.dockerjava.jaxrs" level="INFO"/>
     <logger name="com.github.dockerjava.netty" level="INFO"/>
     <logger name="org.apache.http.impl.conn" level="INFO"/>
 

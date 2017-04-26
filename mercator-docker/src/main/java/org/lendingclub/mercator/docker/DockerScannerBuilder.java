@@ -62,49 +62,40 @@ public class DockerScannerBuilder extends ScannerBuilder<DockerScanner> {
 
 	}
 
-	/**
-	 * Sets a synthetic id for the swarm. There may be cases where the id of the
-	 * cluster can't be obtained and we want to set it.
-	 * 
-	 * @param id
-	 * @return
-	 */
-	public DockerScannerBuilder withSwarmId(String id) {
-		this.managerId = id;
-		return this;
-	}
-
 	public DockerScannerBuilder withLocalDockerDaemon() {
 		return withDockerHost(LOCAL_DOCKER_DAEMON);
 	}
 
 	public DockerScannerBuilder withDockerHost(String host) {
 
-		return withClientSupplierConfig(cfg -> {
+		return withDockerClientSupplierConfig(cfg -> {
 			cfg.withDockerHost(host);
 		});
 
 	}
 
 	public DockerScannerBuilder withName(String name) {
-		return withClientSupplierConfig(cfg -> {
+		return withDockerClientSupplierConfig(cfg -> {
 			cfg.withName(name);
 		});
 
 	}
 
-	public DockerScannerBuilder withClientSupplierBuilder(DockerClientSupplier.Builder b) {
+	public DockerScannerBuilder withDockerClientSupplierBuilder(DockerClientSupplier.Builder b) {
 		this.dockerClientSupplierBuilder = b;
 		return this;
 	}
-	public DockerScannerBuilder withClientSupplierConfig(Consumer<DockerClientSupplier.Builder> b) {
+	public DockerScannerBuilder withDockerClientSupplierConfig(Consumer<DockerClientSupplier.Builder> b) {
 		b.accept(dockerClientSupplierBuilder);
 
 		return this;
 	}
 
+	public DockerScannerBuilder withDockerConfigDir(String file) {
+		return withDockerConfigDir(new File(file));
+	}
 	public DockerScannerBuilder withDockerConfigDir(File f) {
-		return withClientSupplierConfig(cfg -> {
+		return withDockerClientSupplierConfig(cfg -> {
 			cfg.withDockerConfigDir(f);
 		});
 	}

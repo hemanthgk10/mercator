@@ -39,54 +39,8 @@ public class DockerSerializerModule extends SimpleModule {
 
 	public DockerSerializerModule() {
 		addSerializer(Container.class, new ContainerSerializer());
-		addSerializer(Info.class, new InfoSerilaizer());
-		addSerializer(Image.class, new ImageSerializer());
+
 		addSerializer(InspectContainerResponse.class, new InspectContainerResponseSerializer());
-	}
-
-	class InfoSerilaizer extends StdSerializer<Info> {
-
-		private static final long serialVersionUID = 1L;
-
-		protected InfoSerilaizer() {
-			super(Info.class);
-		}
-
-		@Override
-		public void serialize(Info value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-
-			ObjectNode intermediate = (ObjectNode) flatten(vanillaObjectMapper.valueToTree(value));
-
-			ObjectNode target = vanillaObjectMapper.createObjectNode();
-			Converter<String, String> caseFormat = CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.LOWER_CAMEL);
-
-			intermediate.fields().forEachRemaining(it -> {
-
-				if (it.getValue().isContainerNode()) {
-					// discard
-				} else {
-					String key = caseFormat.convert(it.getKey());
-					if (key.startsWith("cPU")) {
-						key = key.replace("cPU", "cpu");
-					} else if (key.equals("imageID")) {
-						key = "imageId";
-					} else if (key.equals("iD")) {
-						key = "id";
-					} else if (key.equalsIgnoreCase("ostype")) {
-						key = "osType";
-					} else if (key.equalsIgnoreCase("ngoroutines")) {
-						key = "nGoRoutines";
-					} else if (key.equalsIgnoreCase("neventsListener")) {
-						key = "nEventsListener";
-					}
-					target.set(key, it.getValue());
-				}
-
-			});
-			gen.writeTree(target);
-
-		}
-
 	}
 
 	void renameAttribute(ObjectNode x, String key, String key2) {
@@ -159,34 +113,6 @@ public class DockerSerializerModule extends SimpleModule {
 			addWithPrefix(out, "state", flatten(n.path("State")));
 			gen.writeTree(out);
 		}
-	}
-
-	class ImageSerializer extends StdSerializer<Image> {
-
-		private static final long serialVersionUID = 1L;
-
-		protected ImageSerializer() {
-			super(Image.class);
-		}
-
-		@Override
-		public void serialize(Image img, JsonGenerator gen, SerializerProvider provider) throws IOException {
-
-			ObjectNode x = vanillaObjectMapper.createObjectNode();
-			x.put("created", img.getCreated());
-			x.put("id", img.getId());
-			x.put("parentId", img.getParentId());
-			ArrayNode an = vanillaObjectMapper.createArrayNode();
-			for (int i = 0; img.getRepoTags() != null && i < img.getRepoTags().length; i++) {
-				an.add(img.getRepoTags()[i]);
-			}
-			x.set("repoTags", an);
-			x.put("size", img.getSize());
-			x.put("virtualSize", img.getVirtualSize());
-
-			gen.writeTree(x);
-		}
-
 	}
 
 	class ContainerSerializer extends StdSerializer<Container> {

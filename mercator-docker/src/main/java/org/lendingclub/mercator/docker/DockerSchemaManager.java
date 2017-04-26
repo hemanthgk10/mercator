@@ -30,7 +30,9 @@ public class DockerSchemaManager extends SchemaManager {
 		applyConstraint("CREATE CONSTRAINT ON (a:DockerImage) assert a.mercatorId IS UNIQUE ");
 		
 		applyConstraint("CREATE CONSTRAINT ON (a:DockerContainer) assert a.mercatorId IS UNIQUE ");
-		applyConstraint("CREATE CONSTRAINT ON (a:DockerManager) assert a.mercatorId IS UNIQUE ");
+		applyConstraint("CREATE CONSTRAINT ON (a:DockerHost) assert a.mercatorId IS UNIQUE ");
+		applyConstraint("CREATE CONSTRAINT ON (a:DockerHost) assert a.nodeId IS UNIQUE ");
+		applyConstraint("CREATE CONSTRAINT ON (a:DockerSwarm) assert a.mercatorId IS UNIQUE ");
 	}
 
 }

@@ -23,17 +23,22 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
 
 import org.lendingclub.mercator.core.MercatorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.DockerCmdExecFactory;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
@@ -48,17 +53,25 @@ import com.google.common.collect.Lists;
 
 public class DockerClientSupplier implements Supplier<DockerClient> {
 
-	private static final String CACHE_KEY="singleton";
+	private static final String CACHE_KEY = "singleton";
 	static Logger logger = LoggerFactory.getLogger(DockerClientSupplier.class);
-	//static AtomicInteger counter = new AtomicInteger(0);
+	// static AtomicInteger counter = new AtomicInteger(0);
 	Builder builder;
-	
-	Cache<String,DockerClient> cache = CacheBuilder.newBuilder().expireAfterWrite(10,TimeUnit.MINUTES).build();
+	static AtomicLong idGen = new AtomicLong();
+	Cache<String, DockerClient> cache = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build();
+
+	DockerEndpointMetadata endpointMetadata = new DockerEndpointMetadataImpl(this);
+
 	protected DockerClientSupplier() {
-		
+
 	}
+
 	public String getName() {
 		return builder.name;
+	}
+
+	public DockerEndpointMetadata getEndpointMetadata() {
+		return endpointMetadata;
 	}
 
 	public String toString() {
@@ -72,24 +85,25 @@ public class DockerClientSupplier implements Supplier<DockerClient> {
 		nb.name = builder.name;
 		return nb;
 	}
-	
+
 	public static class Builder {
 		List<Consumer<com.github.dockerjava.core.DefaultDockerClientConfig.Builder>> configList = Lists.newArrayList();
 		List<Consumer<DockerCmdExecFactory>> cmdExecFactoryConfigList = Lists.newArrayList();
 		AtomicReference<DockerClientSupplier> clientRef = new AtomicReference<DockerClientSupplier>(null);
-	
-		String name;
+
+		String name = "DockerClientSupplier-" + idGen.getAndIncrement();
 
 		public void assertNotImmutable() {
-			if (clientRef.get()!=null) {
+			if (clientRef.get() != null) {
 				throw new IllegalStateException("build() has already been called");
 			}
 		}
+
 		public <T extends Builder> T withDockerConfigDir(File path) {
 			assertNotImmutable();
-			Optional<JsonNode> x =  DockerScannerBuilder.loadDockerConfig(path);
+			Optional<JsonNode> x = DockerScannerBuilder.loadDockerConfig(path);
 			if (!x.isPresent()) {
-				throw new MercatorException("could not load config from: "+path);
+				throw new MercatorException("could not load config from: " + path);
 			}
 
 			return (T) withClientConfig(x.get());
@@ -97,36 +111,36 @@ public class DockerClientSupplier implements Supplier<DockerClient> {
 
 		public <T extends Builder> T withClientConfig(JsonNode n) {
 			assertNotImmutable();
-		
+
 			String host = n.path("DOCKER_HOST").asText();
 			if (!Strings.isNullOrEmpty(host)) {
-		
+
 				withDockerHost(host);
 			}
-			
+
 			String certPath = n.path("DOCKER_CERT_PATH").asText();
 			if (!Strings.isNullOrEmpty(certPath)) {
-				withBuilderConfig(cfg ->{
+				withBuilderConfig(cfg -> {
 					cfg.withDockerCertPath(certPath);
 				});
 			}
 			String verify = n.path("DOCKER_TLS_VERIFY").asText();
 			if (!Strings.isNullOrEmpty(verify)) {
 				if (verify.trim().toLowerCase().equals("1")) {
-					withBuilderConfig(cfg ->{
-					
+					withBuilderConfig(cfg -> {
+
 						cfg.withDockerTlsVerify(true);
 					});
-					
-				}
-				else {
-					withBuilderConfig(cfg ->{
+
+				} else {
+					withBuilderConfig(cfg -> {
 						cfg.withDockerTlsVerify(false);
 					});
 				}
 			}
 			return (T) this;
 		}
+
 		public <T extends Builder> T withCertPath(String path) {
 			assertNotImmutable();
 			return withCertPath(new File(path));
@@ -135,7 +149,6 @@ public class DockerClientSupplier implements Supplier<DockerClient> {
 		public <T extends Builder> T withLocalEngine() {
 			assertNotImmutable();
 			return withDockerHost("unix:///var/run/docker.sock");
-
 
 		}
 
@@ -146,28 +159,28 @@ public class DockerClientSupplier implements Supplier<DockerClient> {
 			});
 		}
 
-
-
 		public <T extends Builder> T withDockerHost(String host) {
 			assertNotImmutable();
-			return withBuilderConfig(cfg->{
+			return withBuilderConfig(cfg -> {
 				cfg.withDockerHost(host);
 			});
-		
+
 		}
+
 		public <T extends Builder> T withName(String name) {
 			assertNotImmutable();
 			this.name = name;
 			return (T) this;
 		}
 
-		public <T extends Builder> T withJerseyConfig(Consumer<JerseyDockerCmdExecFactory> c ) {
+		public <T extends Builder> T withJerseyConfig(Consumer<JerseyDockerCmdExecFactory> c) {
 			Object object = c;
-			Consumer<DockerCmdExecFactory> cc = (Consumer<DockerCmdExecFactory>)object;
-			
+			Consumer<DockerCmdExecFactory> cc = (Consumer<DockerCmdExecFactory>) object;
+
 			cmdExecFactoryConfigList.add(cc);
 			return (T) this;
 		}
+
 		public <T extends Builder> T withBuilderConfig(
 				Consumer<com.github.dockerjava.core.DefaultDockerClientConfig.Builder> consumer) {
 			assertNotImmutable();
@@ -194,30 +207,27 @@ public class DockerClientSupplier implements Supplier<DockerClient> {
 		for (Consumer<com.github.dockerjava.core.DefaultDockerClientConfig.Builder> consumer : this.builder.configList) {
 			consumer.accept(b);
 		}
-		
-		
+
 		DefaultDockerClientConfig cfg = b.build();
 
-		DockerCmdExecFactory dockerCmdExecFactory = new JerseyDockerCmdExecFactory()
-				  .withReadTimeout(3000)
-				  .withConnectTimeout(3000)
-				  .withMaxTotalConnections(100)
-				  .withMaxPerRouteConnections(10);
-		
-		this.builder.cmdExecFactoryConfigList.forEach(it->{
+		DockerCmdExecFactory dockerCmdExecFactory = new JerseyDockerCmdExecFactory().withReadTimeout(3000)
+				.withConnectTimeout(3000).withMaxTotalConnections(100).withMaxPerRouteConnections(10);
+
+		this.builder.cmdExecFactoryConfigList.forEach(it -> {
 			it.accept(dockerCmdExecFactory);
 		});
-		
+
 		return DockerClientBuilder.getInstance(cfg).withDockerCmdExecFactory(dockerCmdExecFactory).build();
 	}
 
 	public void reset() {
 		cache.invalidateAll();
 	}
+
 	@Override
 	public DockerClient get() {
 		DockerClient client = cache.getIfPresent(CACHE_KEY);
-		if (client!=null) {
+		if (client != null) {
 			return client;
 		}
 		client = create();
@@ -226,8 +236,9 @@ public class DockerClientSupplier implements Supplier<DockerClient> {
 	}
 
 	/**
-	 * The Docker java client is significantly behind the server API.  Rather than try to fork/patch our way to success, 
-	 * we just implement a bit of magic to get access to the underlying jax-rs WebTarget.
+	 * The Docker java client is significantly behind the server API. Rather
+	 * than try to fork/patch our way to success, we just implement a bit of
+	 * magic to get access to the underlying jax-rs WebTarget.
 	 * 
 	 * Docker should just expose this as a public method.
 	 * 
@@ -236,21 +247,22 @@ public class DockerClientSupplier implements Supplier<DockerClient> {
 	public WebTarget getWebTarget() {
 		return extractWebTarget(get());
 	}
-	
+
 	/**
-	 * The Docker java client is significantly behind the server API.  Rather than try to fork/patch our way to success, 
-	 * we just implement a bit of magic to get access to the underlying jax-rs WebTarget.
+	 * The Docker java client is significantly behind the server API. Rather
+	 * than try to fork/patch our way to success, we just implement a bit of
+	 * magic to get access to the underlying jax-rs WebTarget.
 	 * 
 	 * Docker should just expose this as a public method.
 	 * 
 	 * @param c
 	 * @return
 	 */
-	public static WebTarget extractWebTarget(DockerClient c)  {
+	public static WebTarget extractWebTarget(DockerClient c) {
 
 		try {
 			for (Field m : DockerClientImpl.class.getDeclaredFields()) {
-				
+
 				if (DockerCmdExecFactory.class.isAssignableFrom(m.getType())) {
 					m.setAccessible(true);
 					JerseyDockerCmdExecFactory f = (JerseyDockerCmdExecFactory) m.get(c);
@@ -260,7 +272,7 @@ public class DockerClientSupplier implements Supplier<DockerClient> {
 				}
 			}
 		} catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-			throw new IllegalStateException("could not obtain WebTarget",e);
+			throw new IllegalStateException("could not obtain WebTarget", e);
 		}
 		throw new IllegalStateException("could not obtain WebTarget");
 	}
