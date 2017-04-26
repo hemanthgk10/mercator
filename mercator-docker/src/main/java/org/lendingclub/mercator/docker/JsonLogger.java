@@ -7,12 +7,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class JsonLogger {
+class JsonLogger {
 
 	static Logger logger = LoggerFactory.getLogger(JsonLogger.class);
 	static ObjectMapper mapper = new ObjectMapper();
 
-	public static void logInfo(String msg, JsonNode n) {
+	static void logInfo(String msg, JsonNode n) {
 
 		try {
 			logger.info("{} - \n {}", msg, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(n));
